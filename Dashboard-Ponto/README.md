@@ -57,3 +57,7 @@ No cabeçalho, o ícone (três triângulos ascendentes nas cores da marca) é um
 ## Testando antes de enviar
 
 Abra `index.html` em qualquer navegador (Chrome, Edge, Firefox) e carregue o `modelo-dados.csv` para ver o painel funcionando com dados de exemplo antes de trocá-lo pelos dados reais.
+
+## Gerando o CSV a partir do PontoNet (macro VBA)
+
+`GerarCSV.bas`, nesta mesma pasta, é uma primeira versão do macro que consolida a aba "Tratamento" (da sua planilha "Tratamento Ponto") com o relatório "Ausência de marcação" (arquivo separado, baixado do PontoNet) numa aba "CSV" pronta para exportar. Esse arquivo **não foi testado dentro do Excel** (não há Excel disponível no ambiente onde ele foi escrito), então revise e rode primeiro numa cópia da planilha. O cabeçalho do próprio arquivo `.bas` explica o passo a passo de instalação e as regras de negócio que ainda precisam da sua confirmação (procure por "REGRA:").
