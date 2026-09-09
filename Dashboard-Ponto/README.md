@@ -47,12 +47,12 @@ Se, na prática da empresa, "demora no PontoNet" significa outra coisa (por exem
 
 ## Sobre o logotipo e as cores
 
-A cooperativa **Aurora Coop** passou por um reposicionamento de marca feito pela Narita Design, com um sol estilizado como símbolo principal. No ambiente em que este arquivo foi criado o acesso ao site oficial da marca e ao repositório de assets estava bloqueado pela rede, então não foi possível baixar o logotipo exato nem confirmar os códigos de cor oficiais.
+O painel usa a paleta oficial da Aurora Coop (vermelho, laranja, amarelo, preto, branco e dois tons de cinza), a partir das imagens da marca fornecidas diretamente pelo RH. Os valores hexadecimais usados são uma leitura aproximada dessas imagens (vermelho `#E31E24`, laranja `#F7931E`, amarelo `#FFC72C`, preto `#1A1A1A`, cinza escuro `#58595B`, cinza claro `#A7A9AC`). Se você tiver o guia de marca com os códigos exatos, basta ajustar os valores no topo do `<style>`, dentro de `:root { ... }` (variáveis `--c-orange`, `--c-gold`, `--c-terracotta`, etc.).
 
-Por isso, o cabeçalho do painel usa um **glifo de sol original**, desenhado à mão em SVG dentro do próprio `index.html` (não é uma cópia do logo oficial), com uma paleta inspirada em tons de amanhecer (amarelo/dourado, laranja, terracota) combinada com um azul petróleo escuro para contraste e leitura dos textos. Se quiser usar o arquivo oficial da marca:
+No cabeçalho, o ícone (três triângulos ascendentes nas cores da marca) é uma recriação em SVG inspirada no símbolo real, e não uma cópia vetorial exata: como as imagens do logotipo foram enviadas coladas na conversa (sem um arquivo de imagem por trás), não foi possível extrair o vetor original com precisão de pixel. Se você anexar os arquivos do logotipo (o mesmo jeito que anexou as planilhas, como arquivo e não colado na mensagem), dá pra embutir a arte oficial em vez desta recriação. Para trocar depois:
 
 1. Abra `index.html` num editor de texto e procure pelo bloco `<svg class="brand-mark">` no `<header>`. Substitua o conteúdo por um `<img>` apontando para o logotipo oficial (como um `data:` URI embutido, para manter o arquivo funcionando sem internet) ou pelo SVG oficial.
-2. As cores da paleta estão centralizadas no topo do `<style>`, dentro de `:root { ... }` (variáveis `--c-orange`, `--c-gold`, `--c-navy`, etc.). Troque os valores hexadecimais pelos códigos oficiais da marca.
+2. O texto "AURORA COOP" ao lado do ícone é HTML/CSS (classe `.brand-name`), não uma imagem. Se o logotipo oficial já incluir a palavra "AURORA COOP" desenhada, você pode remover esse texto para não duplicar.
 
 ## Testando antes de enviar
 

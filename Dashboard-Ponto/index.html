@@ -7,23 +7,23 @@
 <style>
   :root{
     color-scheme: light;
-    --c-paper:#FBF6EA;
-    --c-paper-dim:#F2EAD6;
-    --c-card:#FFFDF7;
-    --c-ink:#26221A;
-    --c-muted:#776E5B;
-    --c-muted-2:#9C9179;
-    --c-line:#E4D7B7;
-    --c-line-strong:#D6C69A;
-    --c-navy:#0F3B4D;
-    --c-navy-dark:#0A2C3A;
-    --c-orange:#E1701F;
-    --c-gold:#E4A90A;
-    --c-terracotta:#AE3A25;
-    --c-green:#2C7A5E;
-    --c-slate:#3F7186;
-    --c-mustard:#A9791F;
-    --c-taupe:#77664B;
+    --c-paper:#F7F7F7;
+    --c-paper-dim:#EFEFEF;
+    --c-card:#FFFFFF;
+    --c-ink:#1A1A1A;
+    --c-muted:#58595B;
+    --c-muted-2:#A7A9AC;
+    --c-line:#E2E2E3;
+    --c-line-strong:#C9CACC;
+    --c-navy:#1A1A1A;
+    --c-navy-dark:#000000;
+    --c-orange:#F7931E;
+    --c-gold:#FFC72C;
+    --c-terracotta:#E31E24;
+    --c-green:#F7931E;
+    --c-slate:#F7931E;
+    --c-mustard:#B3701A;
+    --c-taupe:#58595B;
     --radius-tile:10px;
     --radius-card:8px;
     --radius-panel:14px;
@@ -59,12 +59,13 @@
     border-bottom:3px solid var(--c-orange);
   }
   .brand{ display:flex; align-items:center; gap:12px; min-width:0; }
-  .brand-mark{ width:36px; height:36px; flex:none; }
+  .brand-mark{ width:46px; height:28px; flex:none; }
   .brand-text{ display:flex; flex-direction:column; line-height:1.15; min-width:0; }
-  .brand-name{ font-family:var(--font-serif); font-weight:700; font-size:17px; color:#FBF6EA; letter-spacing:.2px; }
-  .brand-sub{ font-family:var(--font-sans); font-size:11.5px; color:#C9D8DC; }
+  .brand-name{ font-family:var(--font-sans); font-weight:800; font-size:15px; color:#FFFFFF; letter-spacing:.03em; text-transform:uppercase; }
+  .brand-name b{ display:block; font-weight:800; }
+  .brand-sub{ font-family:var(--font-sans); font-size:11.5px; color:#C7C7C8; }
   .topbar-status{
-    font-size:12.5px; color:#E7DEC4;
+    font-size:12.5px; color:#E7E7E8;
     background:rgba(255,255,255,0.08);
     border:1px solid rgba(255,255,255,0.14);
     padding:6px 12px;
@@ -115,17 +116,17 @@
     background:var(--c-paper);
     transition:border-color .15s, background .15s;
   }
-  .upload-drop:hover, .upload-drop.dragover{ border-color:var(--c-orange); background:#FFF6EA; }
+  .upload-drop:hover, .upload-drop.dragover{ border-color:var(--c-orange); background:#FFF3E6; }
   .upload-drop svg{ width:26px; height:26px; color:var(--c-orange); }
   .upload-drop .drop-title{ font-weight:700; font-size:13px; color:var(--c-navy-dark); }
   .upload-drop .drop-sub{ font-size:11.5px; color:var(--c-muted); }
 
   .file-summary{
     display:flex; align-items:flex-start; gap:10px;
-    background:#F3F9F1; border:1px solid #CFE6C8; border-radius:var(--radius-card);
-    padding:10px 12px; font-size:12.5px; color:#2C5C33;
+    background:#F2F2F2; border:1px solid #D6D6D7; border-left:3px solid var(--c-orange); border-radius:var(--radius-card);
+    padding:10px 12px; font-size:12.5px; color:#1A1A1A;
   }
-  .file-summary strong{ display:block; color:#1F4523; margin-bottom:2px; }
+  .file-summary strong{ display:block; color:#000000; margin-bottom:2px; }
 
   .btn{
     display:inline-flex; align-items:center; justify-content:center; gap:6px;
@@ -256,10 +257,10 @@
   .table-scroll table.data-table th{ top:0; }
 
   .status-pill{ display:inline-block; padding:2px 8px; border-radius:var(--radius-pill); font-size:11px; font-weight:700; }
-  .status-Pendente{ background:#FCEFD3; color:#8A5E10; }
-  .status-Aprovado{ background:#DDEFDA; color:#215C2C; }
-  .status-Reprovado{ background:#F6DCD6; color:#8A2E1C; }
-  .status-Regularizado{ background:#DCEAF1; color:#1E5468; }
+  .status-Pendente{ background:#FFF1C2; color:#7A5A00; }
+  .status-Aprovado{ background:#FCE0BE; color:#8A4B12; }
+  .status-Reprovado{ background:#FAD4D2; color:#8A1F1A; }
+  .status-Regularizado{ background:#E7E7E8; color:#3F3F41; }
 
   .history-toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; flex-wrap:wrap; }
   .history-toolbar input[type="text"]{ max-width:260px; }
@@ -270,7 +271,7 @@
   /* ---------- Tooltip ---------- */
   #chartTooltip{
     position:fixed; z-index:200; pointer-events:none;
-    background:var(--c-navy-dark); color:#FBF6EA; font-size:12px;
+    background:var(--c-navy-dark); color:#FFFFFF; font-size:12px;
     padding:6px 10px; border-radius:6px; max-width:240px; line-height:1.35;
     box-shadow:0 4px 14px rgba(0,0,0,.22);
   }
@@ -293,22 +294,13 @@
 
   <header class="topbar">
     <div class="brand">
-      <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
-        <g>
-          <rect x="18.4" y="1" width="3.2" height="8" rx="1.6" fill="#E1701F" transform="rotate(0 20 20)"/>
-          <rect x="18.4" y="1" width="3.2" height="8" rx="1.6" fill="#E1701F" transform="rotate(45 20 20)"/>
-          <rect x="18.4" y="1" width="3.2" height="8" rx="1.6" fill="#E4A90A" transform="rotate(90 20 20)"/>
-          <rect x="18.4" y="1" width="3.2" height="8" rx="1.6" fill="#E1701F" transform="rotate(135 20 20)"/>
-          <rect x="18.4" y="1" width="3.2" height="8" rx="1.6" fill="#E4A90A" transform="rotate(180 20 20)"/>
-          <rect x="18.4" y="1" width="3.2" height="8" rx="1.6" fill="#E1701F" transform="rotate(225 20 20)"/>
-          <rect x="18.4" y="1" width="3.2" height="8" rx="1.6" fill="#E4A90A" transform="rotate(270 20 20)"/>
-          <rect x="18.4" y="1" width="3.2" height="8" rx="1.6" fill="#E1701F" transform="rotate(315 20 20)"/>
-          <circle cx="20" cy="20" r="9.5" fill="#E4A90A"/>
-          <circle cx="20" cy="20" r="9.5" fill="none" stroke="#0F3B4D" stroke-width="0.6" opacity="0.25"/>
-        </g>
+      <svg class="brand-mark" viewBox="0 0 70 42" aria-hidden="true">
+        <polygon points="2,40 18,18 34,40" fill="#FFC72C"/>
+        <polygon points="19,40 35,10 51,40" fill="#F7931E"/>
+        <polygon points="36,40 52,2 68,40" fill="#E31E24"/>
       </svg>
       <div class="brand-text">
-        <span class="brand-name">Aurora Coop</span>
+        <span class="brand-name"><b>Aurora</b><b>Coop</b></span>
         <span class="brand-sub">Painel de Ponto &middot; Ocorrências dos Colaboradores</span>
       </div>
     </div>
@@ -522,7 +514,7 @@
   /* =========================================================
      0. CONSTANTES E PALETA
   ========================================================= */
-  var PALETTE = ["#E1701F","#0F3B4D","#2C7A5E","#E4A90A","#AE3A25","#3F7186","#A9791F","#77664B"];
+  var PALETTE = ["#F7931E","#E31E24","#FFC72C","#1A1A1A","#58595B","#A7A9AC","#B3701A","#8C1518"];
   var DIAS_LABELS = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
   var DIAS_ORDER  = [1,2,3,4,5,6,0]; // getDay(): 0=Dom..6=Sáb
 
@@ -791,9 +783,9 @@
     var plotW = W - leftW - rightW;
     // legend
     var legendY = 10;
-    svg.appendChild(svgEl("rect", { x:leftW, y:0, width:10, height:10, fill: PALETTE[3] }));
+    svg.appendChild(svgEl("rect", { x:leftW, y:0, width:10, height:10, fill: "#FFC72C" }));
     var t1 = svgEl("text", { x:leftW+14, y:9, class:"axis-label" }); t1.textContent = "Banco de horas"; svg.appendChild(t1);
-    svg.appendChild(svgEl("rect", { x:leftW+110, y:0, width:10, height:10, fill: PALETTE[0] }));
+    svg.appendChild(svgEl("rect", { x:leftW+110, y:0, width:10, height:10, fill: "#F7931E" }));
     var t2 = svgEl("text", { x:leftW+124, y:9, class:"axis-label" }); t2.textContent = "Pagamento"; svg.appendChild(t2);
 
     items.forEach(function(it, idx){
@@ -804,8 +796,8 @@
       label.textContent = truncate(it.label, 20);
       svg.appendChild(label);
       svg.appendChild(svgEl("rect", { x:leftW, y:y, width:plotW, height:rowH, class:"chart-track", rx:3 }));
-      if (it.a > 0) svg.appendChild(svgEl("rect", { x:leftW, y:y, width:Math.max(wa,it.a?2:0), height:rowH, fill: PALETTE[3], rx:3, "data-tooltip": it.label + " · Banco de horas: " + formatHoras(it.a) }));
-      if (it.b > 0) svg.appendChild(svgEl("rect", { x:leftW+wa, y:y, width:Math.max(wb,it.b?2:0), height:rowH, fill: PALETTE[0], rx:3, "data-tooltip": it.label + " · Pagamento: " + formatHoras(it.b) }));
+      if (it.a > 0) svg.appendChild(svgEl("rect", { x:leftW, y:y, width:Math.max(wa,it.a?2:0), height:rowH, fill: "#FFC72C", rx:3, "data-tooltip": it.label + " · Banco de horas: " + formatHoras(it.a) }));
+      if (it.b > 0) svg.appendChild(svgEl("rect", { x:leftW+wa, y:y, width:Math.max(wb,it.b?2:0), height:rowH, fill: "#F7931E", rx:3, "data-tooltip": it.label + " · Pagamento: " + formatHoras(it.b) }));
       var val = svgEl("text", { x: leftW + Math.max(wa+wb, 4) + 8, y: y+rowH/2+4, class:"chart-value" });
       val.textContent = formatHoras(it.a+it.b);
       svg.appendChild(val);
