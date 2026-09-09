@@ -1,0 +1,178 @@
+data,colaborador,matricula,gestor,setor,tipo_ocorrencia,situacao,status,duracao_minutos,destino_horas_extra,data_tratativa_pontonet
+01/06/2026,Gustavo Pires,1197,Carlos Bittencourt,Logistica,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Aprovado,-10,,01/06/2026 13:05
+01/06/2026,Kleber Santana,4407,Carlos Bittencourt,Logistica,Saida Antecipada,Saida antecipada autorizada,Regularizado,-30,,02/06/2026 19:14
+01/06/2026,Natalia Campos,5611,Fernanda Lima,Qualidade,Hora Extra,Prorrogacao de jornada,Regularizado,60,Banco de Horas,01/06/2026 16:13
+01/06/2026,Bruno Cardoso,5449,Marina Souza,Producao,Falta,Falta nao justificada,Pendente,-240,,
+01/06/2026,Diego Ferreira,1267,Marina Souza,Producao,Atraso,Transito na entrada,Reprovado,-60,,01/06/2026 12:46
+01/06/2026,Tiago Almeida,7801,Roberto Alencar,Administrativo,Hora Extra,Cobertura de turno,Regularizado,45,Pagamento,01/06/2026 16:12
+02/06/2026,Diego Ferreira,1267,Marina Souza,Producao,Falta,Falta por atestado,Pendente,-480,,
+03/06/2026,Patricia Gomes,3584,Fernanda Lima,Qualidade,Hora Extra,Cobertura de turno,Aprovado,45,Banco de Horas,04/06/2026 19:31
+04/06/2026,Ana Paula Ribeiro,5242,Marina Souza,Producao,Falta,Falta nao justificada,Pendente,-480,,
+04/06/2026,Elaine Souza,9961,Marina Souza,Producao,Saida Antecipada,Saida antecipada autorizada,Regularizado,-60,,04/06/2026 23:33
+05/06/2026,Diego Ferreira,1267,Marina Souza,Producao,Hora Extra,Hora extra autorizada,Pendente,20,Pagamento,
+06/06/2026,Marcos Vinicius,6060,Fernanda Lima,Qualidade,Abono,Abono medico,Regularizado,-240,,06/06/2026 12:09
+06/06/2026,Natalia Campos,5611,Fernanda Lima,Qualidade,Falta,Falta por atestado,Aprovado,-480,,08/06/2026 16:13
+06/06/2026,Tiago Almeida,7801,Roberto Alencar,Administrativo,Hora Extra,Hora extra autorizada,Regularizado,20,Banco de Horas,06/06/2026 20:05
+06/06/2026,William Correia,8252,Roberto Alencar,Administrativo,Atraso,Transito na entrada,Pendente,-12,,
+07/06/2026,Igor Martins,3369,Carlos Bittencourt,Logistica,Hora Extra,Cobertura de turno,Regularizado,30,Banco de Horas,07/06/2026 18:36
+07/06/2026,Ana Paula Ribeiro,5242,Marina Souza,Producao,Atraso,Transito na entrada,Aprovado,-60,,07/06/2026 15:00
+08/06/2026,Otavio Barros,7438,Fernanda Lima,Qualidade,Hora Extra,Prorrogacao de jornada,Pendente,120,Banco de Horas,
+08/06/2026,Rafael Teixeira,1457,Roberto Alencar,Administrativo,Atraso,Transito na entrada,Regularizado,-60,,08/06/2026 09:41
+08/06/2026,Sabrina Costa,6468,Roberto Alencar,Administrativo,Falta,Falta nao justificada,Regularizado,-240,,08/06/2026 21:57
+09/06/2026,Sabrina Costa,6468,Roberto Alencar,Administrativo,Saida Antecipada,Saida antecipada autorizada,Regularizado,-45,,09/06/2026 15:38
+10/06/2026,Gustavo Pires,1197,Carlos Bittencourt,Logistica,Hora Extra,Prorrogacao de jornada,Regularizado,120,Pagamento,10/06/2026 20:31
+10/06/2026,Juliana Rocha,1703,Carlos Bittencourt,Logistica,Abono,Abono medico,Aprovado,-240,,13/06/2026 03:52
+10/06/2026,Ana Paula Ribeiro,5242,Marina Souza,Producao,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Reprovado,-30,,10/06/2026 21:54
+12/06/2026,Gustavo Pires,1197,Carlos Bittencourt,Logistica,Abono,Abono medico,Aprovado,-240,,12/06/2026 22:38
+14/06/2026,Otavio Barros,7438,Fernanda Lima,Qualidade,Falta,Falta por atestado,Regularizado,-480,,16/06/2026 18:12
+14/06/2026,Fabio Nunes,2902,Marina Souza,Producao,Atraso,Chegou apos o horario tolerado,Reprovado,-12,,14/06/2026 10:13
+15/06/2026,Juliana Rocha,1703,Carlos Bittencourt,Logistica,Saida Antecipada,Saida antecipada sem aviso,Pendente,-15,,
+15/06/2026,Otavio Barros,7438,Fernanda Lima,Qualidade,Atraso,Transito na entrada,Pendente,-20,,
+15/06/2026,Patricia Gomes,3584,Fernanda Lima,Qualidade,Falta,Falta nao justificada,Reprovado,-240,,15/06/2026 11:23
+16/06/2026,Fabio Nunes,2902,Marina Souza,Producao,Falta,Falta injustificada,Regularizado,-480,,18/06/2026 17:10
+17/06/2026,Tiago Almeida,7801,Roberto Alencar,Administrativo,Esquecimento de Registro,Esqueceu de bater o ponto na entrada,Regularizado,-30,,17/06/2026 15:23
+18/06/2026,Igor Martins,3369,Carlos Bittencourt,Logistica,Atraso,Atraso na entrada,Aprovado,-12,,18/06/2026 14:00
+18/06/2026,Igor Martins,3369,Carlos Bittencourt,Logistica,Hora Extra,Prorrogacao de jornada,Aprovado,60,Banco de Horas,18/06/2026 17:00
+18/06/2026,Otavio Barros,7438,Fernanda Lima,Qualidade,Falta,Falta por atestado,Reprovado,-480,,18/06/2026 21:36
+19/06/2026,Vanessa Prado,6865,Roberto Alencar,Administrativo,Atraso,Chegou apos o horario tolerado,Reprovado,-10,,19/06/2026 21:07
+20/06/2026,Helena Duarte,7440,Carlos Bittencourt,Logistica,Saida Antecipada,Saida antecipada autorizada,Pendente,-15,,
+20/06/2026,Sabrina Costa,6468,Roberto Alencar,Administrativo,Abono,Abono medico,Regularizado,-240,,20/06/2026 20:53
+21/06/2026,Marcos Vinicius,6060,Fernanda Lima,Qualidade,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Aprovado,-45,,21/06/2026 22:05
+21/06/2026,Otavio Barros,7438,Fernanda Lima,Qualidade,Atraso,Chegou apos o horario tolerado,Regularizado,-15,,22/06/2026 15:54
+21/06/2026,Diego Ferreira,1267,Marina Souza,Producao,Falta,Falta por atestado,Regularizado,-480,,22/06/2026 16:08
+21/06/2026,Rafael Teixeira,1457,Roberto Alencar,Administrativo,Hora Extra,Prorrogacao de jornada,Aprovado,45,Pagamento,26/06/2026 06:43
+22/06/2026,Kleber Santana,4407,Carlos Bittencourt,Logistica,Atraso,Chegou apos o horario tolerado,Aprovado,-30,,24/06/2026 22:53
+22/06/2026,Marcos Vinicius,6060,Fernanda Lima,Qualidade,Saida Antecipada,Saida antecipada sem aviso,Reprovado,-5,,22/06/2026 12:52
+25/06/2026,Marcos Vinicius,6060,Fernanda Lima,Qualidade,Atraso,Transito na entrada,Regularizado,-8,,28/06/2026 06:23
+25/06/2026,Diego Ferreira,1267,Marina Souza,Producao,Hora Extra,Cobertura de turno,Regularizado,10,Pagamento,26/06/2026 03:46
+26/06/2026,Igor Martins,3369,Carlos Bittencourt,Logistica,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Aprovado,-30,,28/06/2026 07:37
+26/06/2026,Kleber Santana,4407,Carlos Bittencourt,Logistica,Esquecimento de Registro,Esqueceu de bater o ponto na entrada,Aprovado,-10,,28/06/2026 13:10
+26/06/2026,Patricia Gomes,3584,Fernanda Lima,Qualidade,Abono,Abono por licenca,Reprovado,-480,,01/07/2026 10:45
+26/06/2026,Bruno Cardoso,5449,Marina Souza,Producao,Atraso,Transito na entrada,Reprovado,-15,,27/06/2026 03:57
+27/06/2026,Patricia Gomes,3584,Fernanda Lima,Qualidade,Esquecimento de Registro,Esqueceu de bater o ponto na entrada,Aprovado,-10,,27/06/2026 10:42
+27/06/2026,Bruno Cardoso,5449,Marina Souza,Producao,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Aprovado,-5,,06/07/2026 03:55
+28/06/2026,Vanessa Prado,6865,Roberto Alencar,Administrativo,Saida Antecipada,Saida antecipada sem aviso,Aprovado,-15,,28/06/2026 20:06
+29/06/2026,Patricia Gomes,3584,Fernanda Lima,Qualidade,Falta,Falta por atestado,Aprovado,-240,,30/06/2026 01:15
+29/06/2026,Ana Paula Ribeiro,5242,Marina Souza,Producao,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Regularizado,-12,,01/07/2026 13:02
+29/06/2026,Elaine Souza,9961,Marina Souza,Producao,Atraso,Chegou apos o horario tolerado,Pendente,-12,,
+30/06/2026,Gustavo Pires,1197,Carlos Bittencourt,Logistica,Esquecimento de Registro,Esqueceu de bater o ponto na entrada,Regularizado,-12,,30/06/2026 10:18
+30/06/2026,Larissa Moura,8012,Fernanda Lima,Qualidade,Esquecimento de Registro,Esqueceu de bater o ponto na entrada,Regularizado,-60,,30/06/2026 13:45
+30/06/2026,Marcos Vinicius,6060,Fernanda Lima,Qualidade,Esquecimento de Registro,Esqueceu de bater o ponto na entrada,Aprovado,-5,,30/06/2026 12:18
+30/06/2026,William Correia,8252,Roberto Alencar,Administrativo,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Aprovado,-5,,02/07/2026 04:54
+01/07/2026,Diego Ferreira,1267,Marina Souza,Producao,Atraso,Transito na entrada,Pendente,-10,,
+02/07/2026,Gustavo Pires,1197,Carlos Bittencourt,Logistica,Esquecimento de Registro,Esqueceu de bater o ponto na entrada,Aprovado,-20,,03/07/2026 00:25
+03/07/2026,Marcos Vinicius,6060,Fernanda Lima,Qualidade,Abono,Abono por licenca,Pendente,-480,,
+03/07/2026,Natalia Campos,5611,Fernanda Lima,Qualidade,Atraso,Atraso na entrada,Aprovado,-12,,03/07/2026 14:00
+03/07/2026,Natalia Campos,5611,Fernanda Lima,Qualidade,Hora Extra,Prorrogacao de jornada,Aprovado,60,Banco de Horas,03/07/2026 17:00
+03/07/2026,Tiago Almeida,7801,Roberto Alencar,Administrativo,Hora Extra,Hora extra autorizada,Aprovado,180,Pagamento,08/07/2026 14:29
+04/07/2026,Marcos Vinicius,6060,Fernanda Lima,Qualidade,Atraso,Atraso na entrada,Regularizado,-15,,04/07/2026 14:29
+04/07/2026,Diego Ferreira,1267,Marina Souza,Producao,Atraso,Chegou apos o horario tolerado,Reprovado,-45,,04/07/2026 20:32
+05/07/2026,Marcos Vinicius,6060,Fernanda Lima,Qualidade,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Aprovado,-10,,05/07/2026 10:27
+05/07/2026,Diego Ferreira,1267,Marina Souza,Producao,Falta,Falta por atestado,Aprovado,-480,,05/07/2026 14:30
+06/07/2026,Natalia Campos,5611,Fernanda Lima,Qualidade,Saida Antecipada,Saida antecipada autorizada,Pendente,-15,,
+06/07/2026,Diego Ferreira,1267,Marina Souza,Producao,Abono,Abono por licenca,Aprovado,-480,,13/07/2026 20:01
+07/07/2026,Fabio Nunes,2902,Marina Souza,Producao,Atraso,Chegou apos o horario tolerado,Regularizado,-8,,07/07/2026 18:35
+07/07/2026,Rafael Teixeira,1457,Roberto Alencar,Administrativo,Atraso,Transito na entrada,Aprovado,-15,,09/07/2026 14:08
+09/07/2026,Fabio Nunes,2902,Marina Souza,Producao,Esquecimento de Registro,Esqueceu de bater o ponto na entrada,Aprovado,-60,,10/07/2026 00:52
+10/07/2026,Ana Paula Ribeiro,5242,Marina Souza,Producao,Atraso,Atraso na entrada,Aprovado,-12,,10/07/2026 14:00
+10/07/2026,Ana Paula Ribeiro,5242,Marina Souza,Producao,Hora Extra,Prorrogacao de jornada,Aprovado,60,Banco de Horas,10/07/2026 17:00
+11/07/2026,Patricia Gomes,3584,Fernanda Lima,Qualidade,Atraso,Transito na entrada,Aprovado,-30,,14/07/2026 12:44
+12/07/2026,Gustavo Pires,1197,Carlos Bittencourt,Logistica,Atraso,Chegou apos o horario tolerado,Aprovado,-10,,12/07/2026 19:25
+12/07/2026,Juliana Rocha,1703,Carlos Bittencourt,Logistica,Saida Antecipada,Saida antecipada sem aviso,Pendente,-45,,
+12/07/2026,Rafael Teixeira,1457,Roberto Alencar,Administrativo,Abono,Abono medico,Regularizado,-240,,19/07/2026 18:47
+12/07/2026,Tiago Almeida,7801,Roberto Alencar,Administrativo,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Aprovado,-8,,12/07/2026 23:39
+13/07/2026,Helena Duarte,7440,Carlos Bittencourt,Logistica,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Pendente,-12,,
+14/07/2026,Larissa Moura,8012,Fernanda Lima,Qualidade,Hora Extra,Hora extra autorizada,Aprovado,120,Banco de Horas,16/07/2026 14:22
+14/07/2026,Patricia Gomes,3584,Fernanda Lima,Qualidade,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Reprovado,-30,,14/07/2026 14:12
+15/07/2026,Helena Duarte,7440,Carlos Bittencourt,Logistica,Atraso,Chegou apos o horario tolerado,Aprovado,-15,,15/07/2026 13:44
+15/07/2026,Elaine Souza,9961,Marina Souza,Producao,Atraso,Transito na entrada,Aprovado,-30,,16/07/2026 03:02
+16/07/2026,Kleber Santana,4407,Carlos Bittencourt,Logistica,Hora Extra,Prorrogacao de jornada,Aprovado,45,Banco de Horas,16/07/2026 10:14
+16/07/2026,Bruno Cardoso,5449,Marina Souza,Producao,Hora Extra,Prorrogacao de jornada,Reprovado,30,Pagamento,24/07/2026 07:35
+16/07/2026,Rafael Teixeira,1457,Roberto Alencar,Administrativo,Saida Antecipada,Saida antecipada sem aviso,Pendente,-60,,
+16/07/2026,Tiago Almeida,7801,Roberto Alencar,Administrativo,Atraso,Atraso na entrada,Aprovado,-10,,21/07/2026 18:07
+17/07/2026,Sabrina Costa,6468,Roberto Alencar,Administrativo,Atraso,Transito na entrada,Regularizado,-15,,19/07/2026 19:52
+18/07/2026,Gustavo Pires,1197,Carlos Bittencourt,Logistica,Atraso,Chegou apos o horario tolerado,Aprovado,-45,,20/07/2026 11:32
+19/07/2026,Marcos Vinicius,6060,Fernanda Lima,Qualidade,Abono,Abono por licenca,Regularizado,-240,,19/07/2026 20:05
+19/07/2026,Rafael Teixeira,1457,Roberto Alencar,Administrativo,Atraso,Atraso na entrada,Regularizado,-20,,19/07/2026 23:30
+19/07/2026,Vanessa Prado,6865,Roberto Alencar,Administrativo,Saida Antecipada,Saida antecipada sem aviso,Regularizado,-8,,24/07/2026 22:41
+20/07/2026,Fabio Nunes,2902,Marina Souza,Producao,Atraso,Transito na entrada,Aprovado,-45,,20/07/2026 18:52
+20/07/2026,Sabrina Costa,6468,Roberto Alencar,Administrativo,Falta,Falta nao justificada,Regularizado,-480,,21/07/2026 00:08
+21/07/2026,Larissa Moura,8012,Fernanda Lima,Qualidade,Abono,Abono medico,Pendente,-480,,
+21/07/2026,Rafael Teixeira,1457,Roberto Alencar,Administrativo,Atraso,Atraso na entrada,Aprovado,-45,,25/07/2026 13:05
+22/07/2026,Ana Paula Ribeiro,5242,Marina Souza,Producao,Atraso,Atraso na entrada,Aprovado,-12,,22/07/2026 14:00
+22/07/2026,Ana Paula Ribeiro,5242,Marina Souza,Producao,Hora Extra,Prorrogacao de jornada,Aprovado,60,Banco de Horas,22/07/2026 17:00
+24/07/2026,Marcos Vinicius,6060,Fernanda Lima,Qualidade,Hora Extra,Cobertura de turno,Regularizado,20,Banco de Horas,24/07/2026 16:56
+24/07/2026,Diego Ferreira,1267,Marina Souza,Producao,Saida Antecipada,Saida antecipada sem aviso,Pendente,-10,,
+24/07/2026,Vanessa Prado,6865,Roberto Alencar,Administrativo,Falta,Falta injustificada,Pendente,-480,,
+25/07/2026,Tiago Almeida,7801,Roberto Alencar,Administrativo,Hora Extra,Hora extra autorizada,Regularizado,180,Pagamento,26/07/2026 02:46
+28/07/2026,Juliana Rocha,1703,Carlos Bittencourt,Logistica,Atraso,Chegou apos o horario tolerado,Aprovado,-5,,28/07/2026 19:37
+28/07/2026,Larissa Moura,8012,Fernanda Lima,Qualidade,Atraso,Atraso na entrada,Pendente,-20,,
+29/07/2026,Fabio Nunes,2902,Marina Souza,Producao,Abono,Abono medico,Reprovado,-480,,29/07/2026 11:15
+29/07/2026,William Correia,8252,Roberto Alencar,Administrativo,Hora Extra,Cobertura de turno,Regularizado,20,Banco de Horas,29/07/2026 12:54
+30/07/2026,Bruno Cardoso,5449,Marina Souza,Producao,Hora Extra,Prorrogacao de jornada,Aprovado,60,Banco de Horas,03/08/2026 23:20
+30/07/2026,Vanessa Prado,6865,Roberto Alencar,Administrativo,Falta,Falta injustificada,Reprovado,-480,,30/07/2026 22:13
+31/07/2026,Gustavo Pires,1197,Carlos Bittencourt,Logistica,Saida Antecipada,Saida antecipada sem aviso,Aprovado,-10,,31/07/2026 16:22
+31/07/2026,Larissa Moura,8012,Fernanda Lima,Qualidade,Falta,Falta injustificada,Reprovado,-240,,31/07/2026 12:34
+31/07/2026,Rafael Teixeira,1457,Roberto Alencar,Administrativo,Abono,Abono medico,Regularizado,-480,,01/08/2026 02:22
+01/08/2026,Marcos Vinicius,6060,Fernanda Lima,Qualidade,Esquecimento de Registro,Esqueceu de bater o ponto na entrada,Pendente,-60,,
+02/08/2026,Marcos Vinicius,6060,Fernanda Lima,Qualidade,Atraso,Atraso na entrada,Regularizado,-5,,02/08/2026 23:31
+02/08/2026,Otavio Barros,7438,Fernanda Lima,Qualidade,Saida Antecipada,Saida antecipada sem aviso,Pendente,-45,,
+02/08/2026,Patricia Gomes,3584,Fernanda Lima,Qualidade,Hora Extra,Cobertura de turno,Regularizado,20,Pagamento,03/08/2026 00:19
+03/08/2026,Patricia Gomes,3584,Fernanda Lima,Qualidade,Atraso,Atraso na entrada,Pendente,-30,,
+04/08/2026,Kleber Santana,4407,Carlos Bittencourt,Logistica,Atraso,Atraso na entrada,Regularizado,-30,,05/08/2026 02:38
+04/08/2026,Tiago Almeida,7801,Roberto Alencar,Administrativo,Hora Extra,Prorrogacao de jornada,Pendente,10,Banco de Horas,
+05/08/2026,Gustavo Pires,1197,Carlos Bittencourt,Logistica,Falta,Falta por atestado,Regularizado,-240,,05/08/2026 23:03
+05/08/2026,Igor Martins,3369,Carlos Bittencourt,Logistica,Atraso,Atraso na entrada,Aprovado,-12,,05/08/2026 14:00
+05/08/2026,Igor Martins,3369,Carlos Bittencourt,Logistica,Hora Extra,Prorrogacao de jornada,Aprovado,60,Banco de Horas,05/08/2026 17:00
+05/08/2026,Patricia Gomes,3584,Fernanda Lima,Qualidade,Falta,Falta nao justificada,Aprovado,-480,,06/08/2026 04:38
+05/08/2026,Ana Paula Ribeiro,5242,Marina Souza,Producao,Falta,Falta por atestado,Aprovado,-480,,05/08/2026 19:30
+06/08/2026,Sabrina Costa,6468,Roberto Alencar,Administrativo,Saida Antecipada,Saida antecipada sem aviso,Regularizado,-20,,08/08/2026 02:23
+07/08/2026,Vanessa Prado,6865,Roberto Alencar,Administrativo,Hora Extra,Cobertura de turno,Aprovado,90,Banco de Horas,08/08/2026 00:33
+08/08/2026,Igor Martins,3369,Carlos Bittencourt,Logistica,Hora Extra,Cobertura de turno,Reprovado,45,Banco de Horas,15/08/2026 20:39
+08/08/2026,Fabio Nunes,2902,Marina Souza,Producao,Abono,Abono por licenca,Aprovado,-480,,10/08/2026 21:07
+09/08/2026,Helena Duarte,7440,Carlos Bittencourt,Logistica,Esquecimento de Registro,Esqueceu de bater o ponto na entrada,Aprovado,-20,,09/08/2026 17:39
+10/08/2026,Juliana Rocha,1703,Carlos Bittencourt,Logistica,Hora Extra,Hora extra autorizada,Aprovado,10,Pagamento,11/08/2026 15:10
+13/08/2026,Gustavo Pires,1197,Carlos Bittencourt,Logistica,Atraso,Chegou apos o horario tolerado,Pendente,-45,,
+14/08/2026,Juliana Rocha,1703,Carlos Bittencourt,Logistica,Falta,Falta por atestado,Aprovado,-240,,14/08/2026 15:08
+14/08/2026,Ana Paula Ribeiro,5242,Marina Souza,Producao,Falta,Falta nao justificada,Aprovado,-240,,14/08/2026 23:44
+15/08/2026,William Correia,8252,Roberto Alencar,Administrativo,Esquecimento de Registro,Esqueceu de bater o ponto na entrada,Regularizado,-45,,17/08/2026 16:15
+16/08/2026,Natalia Campos,5611,Fernanda Lima,Qualidade,Hora Extra,Prorrogacao de jornada,Pendente,45,Pagamento,
+17/08/2026,Gustavo Pires,1197,Carlos Bittencourt,Logistica,Falta,Falta injustificada,Regularizado,-240,,20/08/2026 01:48
+17/08/2026,Marcos Vinicius,6060,Fernanda Lima,Qualidade,Hora Extra,Prorrogacao de jornada,Aprovado,60,Banco de Horas,18/08/2026 02:28
+17/08/2026,Ana Paula Ribeiro,5242,Marina Souza,Producao,Hora Extra,Cobertura de turno,Pendente,10,Pagamento,
+17/08/2026,Elaine Souza,9961,Marina Souza,Producao,Hora Extra,Cobertura de turno,Reprovado,20,Banco de Horas,17/08/2026 22:12
+18/08/2026,Helena Duarte,7440,Carlos Bittencourt,Logistica,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Aprovado,-60,,20/08/2026 00:22
+18/08/2026,Natalia Campos,5611,Fernanda Lima,Qualidade,Esquecimento de Registro,Esqueceu de bater o ponto na entrada,Regularizado,-20,,18/08/2026 11:30
+18/08/2026,Tiago Almeida,7801,Roberto Alencar,Administrativo,Atraso,Chegou apos o horario tolerado,Aprovado,-5,,20/08/2026 00:41
+19/08/2026,Helena Duarte,7440,Carlos Bittencourt,Logistica,Hora Extra,Cobertura de turno,Regularizado,60,Banco de Horas,22/08/2026 04:04
+19/08/2026,Igor Martins,3369,Carlos Bittencourt,Logistica,Hora Extra,Cobertura de turno,Regularizado,30,Banco de Horas,23/08/2026 11:31
+19/08/2026,Fabio Nunes,2902,Marina Souza,Producao,Atraso,Atraso na entrada,Regularizado,-10,,21/08/2026 00:19
+19/08/2026,Tiago Almeida,7801,Roberto Alencar,Administrativo,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Aprovado,-15,,19/08/2026 22:32
+20/08/2026,Juliana Rocha,1703,Carlos Bittencourt,Logistica,Esquecimento de Registro,Esqueceu de bater o ponto na entrada,Pendente,-20,,
+20/08/2026,Tiago Almeida,7801,Roberto Alencar,Administrativo,Falta,Falta injustificada,Reprovado,-240,,30/08/2026 04:52
+20/08/2026,Vanessa Prado,6865,Roberto Alencar,Administrativo,Saida Antecipada,Saida antecipada sem aviso,Regularizado,-15,,20/08/2026 15:13
+21/08/2026,Larissa Moura,8012,Fernanda Lima,Qualidade,Saida Antecipada,Saida antecipada autorizada,Aprovado,-5,,22/08/2026 04:04
+21/08/2026,Sabrina Costa,6468,Roberto Alencar,Administrativo,Abono,Abono por licenca,Pendente,-240,,
+21/08/2026,Vanessa Prado,6865,Roberto Alencar,Administrativo,Atraso,Atraso na entrada,Reprovado,-30,,27/08/2026 09:04
+22/08/2026,Igor Martins,3369,Carlos Bittencourt,Logistica,Atraso,Transito na entrada,Pendente,-8,,
+22/08/2026,Tiago Almeida,7801,Roberto Alencar,Administrativo,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Pendente,-12,,
+23/08/2026,Juliana Rocha,1703,Carlos Bittencourt,Logistica,Esquecimento de Registro,Esqueceu de bater o ponto na entrada,Pendente,-30,,
+23/08/2026,Marcos Vinicius,6060,Fernanda Lima,Qualidade,Atraso,Transito na entrada,Aprovado,-10,,23/08/2026 10:44
+23/08/2026,Otavio Barros,7438,Fernanda Lima,Qualidade,Abono,Abono por licenca,Regularizado,-480,,23/08/2026 18:25
+24/08/2026,Fabio Nunes,2902,Marina Souza,Producao,Falta,Falta por atestado,Pendente,-240,,
+24/08/2026,Tiago Almeida,7801,Roberto Alencar,Administrativo,Abono,Abono por licenca,Regularizado,-240,,25/08/2026 03:30
+25/08/2026,Gustavo Pires,1197,Carlos Bittencourt,Logistica,Hora Extra,Cobertura de turno,Aprovado,60,Pagamento,25/08/2026 19:18
+25/08/2026,Igor Martins,3369,Carlos Bittencourt,Logistica,Saida Antecipada,Saida antecipada sem aviso,Regularizado,-12,,26/08/2026 21:43
+25/08/2026,Kleber Santana,4407,Carlos Bittencourt,Logistica,Atraso,Transito na entrada,Regularizado,-8,,26/08/2026 01:04
+25/08/2026,Ana Paula Ribeiro,5242,Marina Souza,Producao,Abono,Abono medico,Aprovado,-480,,25/08/2026 15:44
+26/08/2026,Tiago Almeida,7801,Roberto Alencar,Administrativo,Hora Extra,Cobertura de turno,Aprovado,30,Pagamento,30/08/2026 23:58
+27/08/2026,Kleber Santana,4407,Carlos Bittencourt,Logistica,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Pendente,-15,,
+27/08/2026,Ana Paula Ribeiro,5242,Marina Souza,Producao,Hora Extra,Cobertura de turno,Regularizado,120,Pagamento,27/08/2026 09:12
+27/08/2026,Elaine Souza,9961,Marina Souza,Producao,Saida Antecipada,Saida antecipada sem aviso,Regularizado,-30,,27/08/2026 18:22
+27/08/2026,Tiago Almeida,7801,Roberto Alencar,Administrativo,Abono,Abono medico,Reprovado,-480,,27/08/2026 11:59
+28/08/2026,Helena Duarte,7440,Carlos Bittencourt,Logistica,Atraso,Chegou apos o horario tolerado,Regularizado,-45,,29/08/2026 01:01
+28/08/2026,Fabio Nunes,2902,Marina Souza,Producao,Hora Extra,Prorrogacao de jornada,Pendente,120,Banco de Horas,
+28/08/2026,Vanessa Prado,6865,Roberto Alencar,Administrativo,Hora Extra,Cobertura de turno,Pendente,120,Pagamento,
+29/08/2026,Helena Duarte,7440,Carlos Bittencourt,Logistica,Esquecimento de Registro,Esqueceu de bater o ponto na entrada,Aprovado,-60,,30/08/2026 00:12
+30/08/2026,Diego Ferreira,1267,Marina Souza,Producao,Saida Antecipada,Saida antecipada sem aviso,Aprovado,-15,,02/09/2026 03:41
+31/08/2026,Kleber Santana,4407,Carlos Bittencourt,Logistica,Saida Antecipada,Saida antecipada sem aviso,Regularizado,-5,,02/09/2026 21:16

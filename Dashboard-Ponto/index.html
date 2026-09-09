@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Ponto | Aurora Coop</title>
+<style>
+  :root{
+    color-scheme: light;
+    --c-paper:#FBF6EA;
+    --c-paper-dim:#F2EAD6;
+    --c-card:#FFFDF7;
+    --c-ink:#26221A;
+    --c-muted:#776E5B;
+    --c-muted-2:#9C9179;
+    --c-line:#E4D7B7;
+    --c-line-strong:#D6C69A;
+    --c-navy:#0F3B4D;
+    --c-navy-dark:#0A2C3A;
+    --c-orange:#E1701F;
+    --c-gold:#E4A90A;
+    --c-terracotta:#AE3A25;
+    --c-green:#2C7A5E;
+    --c-slate:#3F7186;
+    --c-mustard:#A9791F;
+    --c-taupe:#77664B;
+    --radius-tile:10px;
+    --radius-card:8px;
+    --radius-panel:14px;
+    --radius-pill:999px;
+    --font-serif: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --sidebar-w: 320px;
+    --header-h: 64px;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--c-paper);
+    color:var(--c-ink);
+    font-family:var(--font-sans);
+    font-size:14px;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4{ font-family:var(--font-serif); font-weight:700; margin:0; color:var(--c-navy-dark); }
+  a{ color:var(--c-navy); }
+  button{ font-family:inherit; }
+
+  /* ---------- Header ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:50;
+    height:var(--header-h);
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px;
+    padding:0 20px;
+    background:var(--c-navy-dark);
+    border-bottom:3px solid var(--c-orange);
+  }
+  .brand{ display:flex; align-items:center; gap:12px; min-width:0; }
+  .brand-mark{ width:36px; height:36px; flex:none; }
+  .brand-text{ display:flex; flex-direction:column; line-height:1.15; min-width:0; }
+  .brand-name{ font-family:var(--font-serif); font-weight:700; font-size:17px; color:#FBF6EA; letter-spacing:.2px; }
+  .brand-sub{ font-family:var(--font-sans); font-size:11.5px; color:#C9D8DC; }
+  .topbar-status{
+    font-size:12.5px; color:#E7DEC4;
+    background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.14);
+    padding:6px 12px;
+    border-radius:var(--radius-pill);
+    white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; max-width:46vw;
+  }
+
+  /* ---------- Layout ---------- */
+  .layout{ display:flex; align-items:flex-start; }
+  .content{ flex:1 1 auto; min-width:0; padding:22px 24px 60px; }
+  .sidebar{
+    flex:none;
+    width:var(--sidebar-w);
+    position:sticky;
+    top:var(--header-h);
+    height:calc(100vh - var(--header-h));
+    overflow-y:auto;
+    border-left:1px solid var(--c-line);
+    background:var(--c-paper-dim);
+    padding:18px 16px 30px;
+  }
+  .sidebar::-webkit-scrollbar{ width:8px; }
+  .sidebar::-webkit-scrollbar-thumb{ background:var(--c-line-strong); border-radius:4px; }
+
+  .side-block{
+    background:var(--c-card);
+    border:1px solid var(--c-line);
+    border-radius:var(--radius-panel);
+    padding:14px 14px 16px;
+    margin-bottom:14px;
+  }
+  .side-block h3{
+    font-family:var(--font-sans); font-weight:700; font-size:12px;
+    text-transform:uppercase; letter-spacing:.06em;
+    color:var(--c-taupe); margin:0 0 10px;
+  }
+  .side-note{ font-size:11.5px; color:var(--c-muted-2); margin-top:10px; line-height:1.5; }
+
+  .upload-drop{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:6px;
+    border:1.5px dashed var(--c-line-strong);
+    border-radius:var(--radius-card);
+    padding:20px 10px;
+    text-align:center;
+    cursor:pointer;
+    background:var(--c-paper);
+    transition:border-color .15s, background .15s;
+  }
+  .upload-drop:hover, .upload-drop.dragover{ border-color:var(--c-orange); background:#FFF6EA; }
+  .upload-drop svg{ width:26px; height:26px; color:var(--c-orange); }
+  .upload-drop .drop-title{ font-weight:700; font-size:13px; color:var(--c-navy-dark); }
+  .upload-drop .drop-sub{ font-size:11.5px; color:var(--c-muted); }
+
+  .file-summary{
+    display:flex; align-items:flex-start; gap:10px;
+    background:#F3F9F1; border:1px solid #CFE6C8; border-radius:var(--radius-card);
+    padding:10px 12px; font-size:12.5px; color:#2C5C33;
+  }
+  .file-summary strong{ display:block; color:#1F4523; margin-bottom:2px; }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    border:none; cursor:pointer;
+    border-radius:var(--radius-pill);
+    padding:8px 14px;
+    font-size:12.5px; font-weight:700;
+    background:var(--c-orange); color:#fff;
+  }
+  .btn:hover{ background:#C85E15; }
+  .btn-ghost{
+    background:transparent; color:var(--c-navy); border:1px solid var(--c-line-strong);
+    border-radius:var(--radius-pill); padding:7px 13px; font-size:12px; font-weight:700; cursor:pointer;
+  }
+  .btn-ghost:hover{ border-color:var(--c-navy); }
+  .btn-block{ width:100%; margin-top:10px; }
+
+  .filter-group{ margin-bottom:14px; }
+  .filter-group:last-child{ margin-bottom:0; }
+  .filter-group label{
+    display:block; font-size:11.5px; font-weight:700; color:var(--c-muted);
+    text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;
+  }
+  select, input[type="text"], input[type="date"]{
+    width:100%; padding:8px 10px; font-size:13px; color:var(--c-ink);
+    background:var(--c-paper); border:1px solid var(--c-line-strong); border-radius:var(--radius-card);
+    font-family:var(--font-sans);
+  }
+  select:focus, input:focus{ outline:2px solid var(--c-slate); outline-offset:1px; }
+  .date-range{ display:flex; gap:6px; }
+  .date-range input{ flex:1 1 0; min-width:0; }
+
+  .chip-group{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{
+    font-size:11.5px; padding:6px 11px; border-radius:var(--radius-pill);
+    border:1px solid var(--c-line-strong); background:var(--c-paper); color:var(--c-muted);
+    cursor:pointer; user-select:none;
+  }
+  .chip.active{ background:var(--c-navy); border-color:var(--c-navy); color:#fff; }
+
+  /* ---------- Empty state ---------- */
+  .empty-state{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; gap:14px;
+    padding:80px 20px;
+    color:var(--c-muted);
+    border:1.5px dashed var(--c-line-strong);
+    border-radius:var(--radius-panel);
+    background:var(--c-card);
+  }
+  .empty-state svg{ width:64px; height:64px; opacity:.55; }
+  .empty-state h2{ font-size:20px; color:var(--c-navy-dark); }
+  .empty-state p{ max-width:440px; margin:0; font-size:13.5px; }
+
+  [hidden]{ display:none !important; }
+
+  /* ---------- KPIs ---------- */
+  .kpis{ display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:12px; margin-bottom:22px; }
+  .kpi-tile{
+    background:var(--c-card); border:1px solid var(--c-line); border-radius:var(--radius-tile);
+    padding:14px 14px 12px; border-top:3px solid var(--c-orange);
+  }
+  .kpi-tile.k-navy{ border-top-color:var(--c-navy); }
+  .kpi-tile.k-green{ border-top-color:var(--c-green); }
+  .kpi-tile.k-terra{ border-top-color:var(--c-terracotta); }
+  .kpi-tile.k-gold{ border-top-color:var(--c-gold); }
+  .kpi-tile.k-slate{ border-top-color:var(--c-slate); }
+  .kpi-label{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--c-muted); margin-bottom:6px; }
+  .kpi-value{ font-family:var(--font-sans); font-size:24px; font-weight:800; color:var(--c-navy-dark); font-variant-numeric:tabular-nums; line-height:1.1; }
+  .kpi-sub{ font-size:11px; color:var(--c-muted-2); margin-top:3px; }
+
+  /* ---------- Section / grid ---------- */
+  .section-title{ font-size:18px; margin:30px 0 12px; padding-top:6px; border-top:1px solid var(--c-line); color:var(--c-navy-dark); }
+  .section-title:first-of-type{ margin-top:0; border-top:none; padding-top:0; }
+  .grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
+  .grid.grid-5 .card:nth-child(1){ grid-column:1 / 2; }
+
+  .card{
+    background:var(--c-card); border:1px solid var(--c-line); border-radius:var(--radius-card);
+    padding:14px 16px 16px; min-width:0;
+  }
+  .card.wide{ grid-column:1 / -1; }
+  .card-title{ font-size:14px; color:var(--c-navy-dark); margin-bottom:2px; }
+  .card-hint{ font-size:11px; color:var(--c-muted-2); margin-bottom:10px; }
+  .card-body{ min-height:40px; }
+
+  .chart-empty{ font-size:12.5px; color:var(--c-muted-2); padding:30px 10px; text-align:center; }
+
+  svg.chart-svg{ width:100%; height:auto; display:block; overflow:visible; font-family:var(--font-sans); }
+  .chart-label{ font-size:11px; fill:var(--c-ink); }
+  .axis-label{ font-size:10.5px; fill:var(--c-muted); }
+  .chart-value{ font-size:11px; fill:var(--c-navy-dark); font-weight:700; }
+  .chart-track{ fill:var(--c-paper-dim); }
+  .chart-bar{ cursor:default; }
+  .grid-line{ stroke:var(--c-line); stroke-width:1; }
+  .chart-area{ fill:var(--c-orange); opacity:.14; }
+  .chart-line{ stroke:var(--c-orange); stroke-width:2.25; }
+  .chart-hit{ fill:transparent; cursor:default; }
+  .chart-hit:hover{ fill:var(--c-orange); opacity:.5; }
+  .chart-seg{ cursor:default; stroke:var(--c-card); stroke-width:1.5; }
+  .donut-total{ font-size:22px; font-weight:800; fill:var(--c-navy-dark); }
+
+  .legend{ display:flex; flex-direction:column; gap:5px; margin-top:10px; }
+  .legend-row{ display:flex; align-items:center; gap:8px; font-size:12px; }
+  .legend-dot{ width:9px; height:9px; border-radius:2px; flex:none; }
+  .legend-label{ flex:1 1 auto; color:var(--c-ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .legend-value{ font-weight:700; color:var(--c-navy-dark); font-variant-numeric:tabular-nums; }
+
+  .donut-wrap{ display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  .donut-wrap svg{ width:150px; height:150px; flex:none; }
+  .donut-wrap .legend{ flex:1 1 160px; margin-top:0; }
+
+  /* ---------- Tables ---------- */
+  table.data-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  table.data-table th, table.data-table td{
+    text-align:left; padding:7px 9px; border-bottom:1px solid var(--c-line);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px;
+  }
+  table.data-table th{
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--c-muted);
+    cursor:pointer; user-select:none; position:sticky; top:0; background:var(--c-card);
+  }
+  table.data-table th:hover{ color:var(--c-navy-dark); }
+  table.data-table th.sorted-asc::after{ content:" \2191"; }
+  table.data-table th.sorted-desc::after{ content:" \2193"; }
+  table.data-table tbody tr:hover{ background:var(--c-paper-dim); }
+  .table-scroll{ max-height:340px; overflow:auto; border:1px solid var(--c-line); border-radius:var(--radius-card); }
+  .table-scroll table.data-table th{ top:0; }
+
+  .status-pill{ display:inline-block; padding:2px 8px; border-radius:var(--radius-pill); font-size:11px; font-weight:700; }
+  .status-Pendente{ background:#FCEFD3; color:#8A5E10; }
+  .status-Aprovado{ background:#DDEFDA; color:#215C2C; }
+  .status-Reprovado{ background:#F6DCD6; color:#8A2E1C; }
+  .status-Regularizado{ background:#DCEAF1; color:#1E5468; }
+
+  .history-toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; flex-wrap:wrap; }
+  .history-toolbar input[type="text"]{ max-width:260px; }
+  .pagination{ display:flex; align-items:center; gap:10px; justify-content:flex-end; margin-top:10px; font-size:12px; color:var(--c-muted); }
+  .pagination button{ border:1px solid var(--c-line-strong); background:var(--c-card); border-radius:6px; padding:4px 9px; cursor:pointer; }
+  .pagination button:disabled{ opacity:.4; cursor:not-allowed; }
+
+  /* ---------- Tooltip ---------- */
+  #chartTooltip{
+    position:fixed; z-index:200; pointer-events:none;
+    background:var(--c-navy-dark); color:#FBF6EA; font-size:12px;
+    padding:6px 10px; border-radius:6px; max-width:240px; line-height:1.35;
+    box-shadow:0 4px 14px rgba(0,0,0,.22);
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 980px){
+    .layout{ flex-direction:column; }
+    .sidebar{ position:static; width:100%; height:auto; border-left:none; border-top:1px solid var(--c-line); order:-1; }
+    .kpis{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+    .grid{ grid-template-columns:1fr; }
+    .topbar-status{ display:none; }
+  }
+  @media (max-width: 520px){
+    .kpis{ grid-template-columns:1fr; }
+    .content{ padding:16px 12px 40px; }
+  }
+</style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+        <g>
+          <rect x="18.4" y="1" width="3.2" height="8" rx="1.6" fill="#E1701F" transform="rotate(0 20 20)"/>
+          <rect x="18.4" y="1" width="3.2" height="8" rx="1.6" fill="#E1701F" transform="rotate(45 20 20)"/>
+          <rect x="18.4" y="1" width="3.2" height="8" rx="1.6" fill="#E4A90A" transform="rotate(90 20 20)"/>
+          <rect x="18.4" y="1" width="3.2" height="8" rx="1.6" fill="#E1701F" transform="rotate(135 20 20)"/>
+          <rect x="18.4" y="1" width="3.2" height="8" rx="1.6" fill="#E4A90A" transform="rotate(180 20 20)"/>
+          <rect x="18.4" y="1" width="3.2" height="8" rx="1.6" fill="#E1701F" transform="rotate(225 20 20)"/>
+          <rect x="18.4" y="1" width="3.2" height="8" rx="1.6" fill="#E4A90A" transform="rotate(270 20 20)"/>
+          <rect x="18.4" y="1" width="3.2" height="8" rx="1.6" fill="#E1701F" transform="rotate(315 20 20)"/>
+          <circle cx="20" cy="20" r="9.5" fill="#E4A90A"/>
+          <circle cx="20" cy="20" r="9.5" fill="none" stroke="#0F3B4D" stroke-width="0.6" opacity="0.25"/>
+        </g>
+      </svg>
+      <div class="brand-text">
+        <span class="brand-name">Aurora Coop</span>
+        <span class="brand-sub">Painel de Ponto &middot; Ocorrências dos Colaboradores</span>
+      </div>
+    </div>
+    <div class="topbar-status" id="fileStatus">Nenhum arquivo carregado</div>
+  </header>
+
+  <div class="layout">
+    <main class="content" id="content">
+
+      <section class="empty-state" id="emptyState">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h2>Nenhum dado carregado</h2>
+        <p>Use o bloco <strong>“Carregar dados”</strong>, no painel à direita, para abrir o arquivo CSV com as ocorrências de ponto. Sem o arquivo, este painel permanece vazio: ele nunca contém dados por padrão.</p>
+      </section>
+
+      <section class="kpis" id="kpiRow" hidden>
+        <div class="kpi-tile k-navy">
+          <div class="kpi-label">Colaboradores envolvidos</div>
+          <div class="kpi-value" id="kpiColaboradores">0</div>
+          <div class="kpi-sub" id="kpiColaboradoresSub"></div>
+        </div>
+        <div class="kpi-tile">
+          <div class="kpi-label">Ocorrências no período</div>
+          <div class="kpi-value" id="kpiOcorrencias">0</div>
+          <div class="kpi-sub" id="kpiOcorrenciasSub"></div>
+        </div>
+        <div class="kpi-tile k-green">
+          <div class="kpi-label">Total de horas extra</div>
+          <div class="kpi-value" id="kpiExtra">0h</div>
+          <div class="kpi-sub">Banco de horas + pagamento</div>
+        </div>
+        <div class="kpi-tile k-terra">
+          <div class="kpi-label">Total de horas falta/atraso</div>
+          <div class="kpi-value" id="kpiFalta">0h</div>
+          <div class="kpi-sub">Soma de todas as ausências</div>
+        </div>
+        <div class="kpi-tile k-gold">
+          <div class="kpi-label">Banco de horas gerado</div>
+          <div class="kpi-value" id="kpiBanco">0h</div>
+          <div class="kpi-sub">Hora extra destinada ao banco</div>
+        </div>
+        <div class="kpi-tile k-slate">
+          <div class="kpi-label">Demora média no PontoNet</div>
+          <div class="kpi-value" id="kpiDemora">&ndash;</div>
+          <div class="kpi-sub" id="kpiDemoraSub">Da ocorrência até a tratativa</div>
+        </div>
+      </section>
+
+      <div id="dashboardBody" hidden>
+
+        <h3 class="section-title">Visão geral das ocorrências</h3>
+        <section class="grid">
+          <div class="card">
+            <div class="card-title">Ocorrências por tipo</div>
+            <div class="card-hint">Distribuição das ocorrências registradas por tipo</div>
+            <div class="card-body donut-wrap" id="chartTipo"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Ocorrências por dia da semana</div>
+            <div class="card-hint">Em qual dia da semana as ocorrências mais acontecem</div>
+            <div class="card-body" id="chartDiaSemana"></div>
+          </div>
+          <div class="card wide">
+            <div class="card-title">Ocorrências por data</div>
+            <div class="card-hint">Evolução diária no período filtrado</div>
+            <div class="card-body" id="chartPorData"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Ocorrências por gestor</div>
+            <div class="card-hint">Volume de ocorrências das equipes de cada gestor</div>
+            <div class="card-body" id="chartPorGestor"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Ocorrências por setor</div>
+            <div class="card-hint">Volume de ocorrências por setor/área</div>
+            <div class="card-body" id="chartPorSetor"></div>
+          </div>
+        </section>
+
+        <h3 class="section-title">Colaboradores em destaque</h3>
+        <section class="grid">
+          <div class="card">
+            <div class="card-title">Colaboradores com mais ocorrências</div>
+            <div class="card-hint">Top 10 no período filtrado</div>
+            <div class="card-body" id="chartTopColaboradores"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Extra e falta no mesmo dia</div>
+            <div class="card-hint">Colaboradores com mais dias em que houve falta/atraso e hora extra simultaneamente</div>
+            <div class="card-body" id="tableExtraFalta"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Ocorrências curtas (&lt; 15 minutos)</div>
+            <div class="card-hint">Colaboradores com mais faltas/atrasos ou horas extra registrados com menos de 15 minutos</div>
+            <div class="card-body" id="tableCurtas"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Banco de horas e hora extra por colaborador</div>
+            <div class="card-hint">Top 10 &middot; horas extra destinadas a banco de horas ou pagamento</div>
+            <div class="card-body" id="chartBancoHoras"></div>
+          </div>
+        </section>
+
+        <h3 class="section-title">Demora de tratativa no PontoNet</h3>
+        <section class="grid">
+          <div class="card wide">
+            <div class="card-title">Média e maior demora por gestor</div>
+            <div class="card-hint">Tempo entre a ocorrência e a tratativa/aprovação no sistema, por gestor</div>
+            <div class="card-body" id="tableDemoraGestor"></div>
+          </div>
+          <div class="card wide">
+            <div class="card-title">Média e maior demora por colaborador</div>
+            <div class="card-hint">Tempo entre a ocorrência e a tratativa/aprovação no sistema, por colaborador</div>
+            <div class="card-body" id="tableDemoraColaborador"></div>
+          </div>
+        </section>
+
+        <h3 class="section-title">Histórico de ocorrências</h3>
+        <section class="card wide" id="historySection">
+          <div class="history-toolbar">
+            <input type="text" id="historySearch" placeholder="Buscar por colaborador, gestor, setor...">
+            <span id="historyCount" style="font-size:12px;color:var(--c-muted);"></span>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table" id="historyTable">
+              <thead><tr>
+                <th data-key="data">Data</th>
+                <th data-key="colaborador">Colaborador</th>
+                <th data-key="gestor">Gestor</th>
+                <th data-key="setor">Setor</th>
+                <th data-key="tipo">Tipo</th>
+                <th data-key="situacao">Situação</th>
+                <th data-key="status">Status</th>
+              </tr></thead>
+              <tbody id="historyBody"></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="historyPagination"></div>
+        </section>
+
+      </div>
+    </main>
+
+    <aside class="sidebar">
+      <div class="sidebar-inner">
+        <div class="side-block">
+          <h3>1. Carregar dados</h3>
+          <label class="upload-drop" id="dropZone" for="fileInput">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 15V3m0 0 4 4m-4-4-4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="drop-title">Clique ou arraste o CSV aqui</span>
+            <span class="drop-sub" id="dropSub">Arquivo fornecido pelo RH</span>
+            <input type="file" id="fileInput" accept=".csv,text/csv" hidden>
+          </label>
+          <div class="file-summary" id="fileSummary" hidden>
+            <div>
+              <strong id="fileSummaryName"></strong>
+              <span id="fileSummaryMeta"></span>
+            </div>
+          </div>
+          <button class="btn-ghost btn-block" id="resetBtn" hidden>Carregar outro arquivo</button>
+        </div>
+
+        <div class="side-block" id="filtersBlock" hidden>
+          <h3>2. Filtros</h3>
+          <div class="filter-group">
+            <label for="fGestor">Gestor</label>
+            <select id="fGestor"><option value="">Todos os gestores</option></select>
+          </div>
+          <div class="filter-group">
+            <label for="fSetor">Setor</label>
+            <select id="fSetor"><option value="">Todos os setores</option></select>
+          </div>
+          <div class="filter-group">
+            <label for="fColab">Colaborador</label>
+            <input type="text" id="fColab" list="colabList" placeholder="Buscar colaborador...">
+            <datalist id="colabList"></datalist>
+          </div>
+          <div class="filter-group">
+            <label>Tipo de ocorrência</label>
+            <div class="chip-group" id="fTipo"></div>
+          </div>
+          <div class="filter-group">
+            <label>Status</label>
+            <div class="chip-group" id="fStatus"></div>
+          </div>
+          <div class="filter-group">
+            <label>Período</label>
+            <div class="date-range">
+              <input type="date" id="fDataIni">
+              <input type="date" id="fDataFim">
+            </div>
+          </div>
+          <button class="btn-ghost btn-block" id="clearFilters">Limpar filtros</button>
+          <p class="side-note">Os filtros afetam todos os gráficos, tabelas e o histórico abaixo. O filtro de gestor é o mais usado quando este mesmo arquivo é enviado ao supervisor geral com a base completa.</p>
+        </div>
+
+        <div class="side-block">
+          <h3>Privacidade</h3>
+          <p class="side-note" style="margin-top:0;">Este painel roda inteiramente no seu navegador. O arquivo CSV carregado não é enviado para nenhum servidor: os dados ficam só na sua máquina.</p>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div id="chartTooltip" hidden></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* =========================================================
+     0. CONSTANTES E PALETA
+  ========================================================= */
+  var PALETTE = ["#E1701F","#0F3B4D","#2C7A5E","#E4A90A","#AE3A25","#3F7186","#A9791F","#77664B"];
+  var DIAS_LABELS = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+  var DIAS_ORDER  = [1,2,3,4,5,6,0]; // getDay(): 0=Dom..6=Sáb
+
+  var HEADER_ALIASES = {
+    data:      ["data","data_ocorrencia","dt_ocorrencia"],
+    colaborador: ["colaborador","funcionario","nome","colaborador_nome"],
+    matricula: ["matricula","matricula_colaborador","codigo","id"],
+    gestor:    ["gestor","gestor_responsavel","supervisor","lider"],
+    setor:     ["setor","departamento","area"],
+    tipo:      ["tipo_ocorrencia","tipo","ocorrencia","tipo_de_ocorrencia"],
+    situacao:  ["situacao","descricao","observacao","justificativa"],
+    status:    ["status","status_ocorrencia","situacao_status"],
+    duracao:   ["duracao_minutos","duracao","minutos","qtd_minutos"],
+    destinoExtra: ["destino_horas_extra","destino_extra","tipo_hora_extra","destino"],
+    tratativa: ["data_tratativa_pontonet","tratativa_pontonet","data_tratativa","data_regularizacao","data_aprovacao"]
+  };
+
+  var state = {
+    records: [],
+    colorMaps: { gestor:{}, setor:{}, tipo:{}, status:{} },
+    historySort: { key:"data", dir:"desc" },
+    historyPage: 1,
+    historyPageSize: 25
+  };
+
+  /* =========================================================
+     1. HELPERS GERAIS
+  ========================================================= */
+  function $(id){ return document.getElementById(id); }
+  function escapeHtml(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function normalizeHeader(h){
+    return String(h||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .trim().toLowerCase().replace(/\s+/g,"_");
+  }
+  function stripAccents(s){
+    return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  }
+  function formatNum(n){
+    if (n == null || isNaN(n)) return "0";
+    return Math.round(n).toLocaleString("pt-BR");
+  }
+  function formatHoras(minutes){
+    minutes = Math.round(Math.abs(minutes||0));
+    var h = Math.floor(minutes/60), m = minutes%60;
+    if (h === 0) return m + "min";
+    if (m === 0) return h + "h";
+    return h + "h " + (m<10?"0":"") + m + "min";
+  }
+  function formatDelay(hours){
+    if (hours == null || isNaN(hours)) return "&ndash;";
+    if (hours < 24) return hours.toFixed(1).replace(".",",") + "h";
+    var d = hours/24;
+    return d.toFixed(1).replace(".",",") + " dias";
+  }
+  function truncate(str, n){
+    str = String(str||"");
+    return str.length > n ? str.slice(0,n-1)+"…" : str;
+  }
+  function colorFor(dim, key){
+    var map = state.colorMaps[dim];
+    if (!map[key]){
+      var used = Object.keys(map).length;
+      map[key] = PALETTE[used % PALETTE.length];
+    }
+    return map[key];
+  }
+  function dateKey(d){
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  }
+  function formatDateBR(d){
+    if (!d) return "";
+    return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear();
+  }
+
+  /* =========================================================
+     2. PARSER DE CSV (sem dependências externas)
+  ========================================================= */
+  function detectDelimiter(text){
+    var firstLine = text.split(/\r\n|\n/,1)[0] || "";
+    var commas = (firstLine.match(/,/g)||[]).length;
+    var semis  = (firstLine.match(/;/g)||[]).length;
+    return semis > commas ? ";" : ",";
+  }
+
+  function parseCSV(text, delim){
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    var rows = [], row = [], field = "", inQuotes = false;
+    for (var i=0; i<text.length; i++){
+      var c = text[i];
+      if (inQuotes){
+        if (c === '"'){
+          if (text[i+1] === '"'){ field += '"'; i++; }
+          else inQuotes = false;
+        } else field += c;
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === delim){ row.push(field); field = ""; }
+        else if (c === "\n"){ row.push(field); rows.push(row); row = []; field = ""; }
+        else if (c === "\r"){ /* ignora, tratado pelo \n */ }
+        else field += c;
+      }
+    }
+    if (field.length || row.length){ row.push(field); rows.push(row); }
+    return rows.filter(function(r){ return !(r.length===1 && r[0].trim()==="") ; });
+  }
+
+  function parseNumber(raw){
+    if (raw == null) return 0;
+    var s = String(raw).trim();
+    if (!s) return 0;
+    var neg = /^-/.test(s.trim()) || /^\(.*\)$/.test(s.trim());
+    s = s.replace(/[^\d,.\-]/g,"");
+    var hasComma = s.indexOf(",") > -1, hasDot = s.indexOf(".") > -1;
+    if (hasComma && hasDot){
+      if (s.lastIndexOf(",") > s.lastIndexOf(".")) s = s.replace(/\./g,"").replace(",",".");
+      else s = s.replace(/,/g,"");
+    } else if (hasComma){
+      s = s.replace(",",".");
+    }
+    var n = parseFloat(s);
+    if (isNaN(n)) return 0;
+    return n;
+  }
+
+  function parseDate(str){
+    if (!str) return null;
+    str = String(str).trim();
+    if (!str) return null;
+    var m = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
+    if (m) return new Date(+m[1], +m[2]-1, +m[3], m[4]?+m[4]:0, m[5]?+m[5]:0);
+    m = str.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):(\d{2}))?/);
+    if (m) return new Date(+m[3], +m[2]-1, +m[1], m[4]?+m[4]:0, m[5]?+m[5]:0);
+    var d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function buildColumnIndex(headerRow){
+    var normalized = headerRow.map(normalizeHeader);
+    var idx = {};
+    Object.keys(HEADER_ALIASES).forEach(function(key){
+      var aliases = HEADER_ALIASES[key];
+      for (var a=0; a<aliases.length; a++){
+        var pos = normalized.indexOf(aliases[a]);
+        if (pos > -1){ idx[key] = pos; return; }
+      }
+    });
+    return idx;
+  }
+
+  function recordsFromCSV(text){
+    var delim = detectDelimiter(text);
+    var rows = parseCSV(text, delim);
+    if (!rows.length) return { records:[], error:"O arquivo está vazio." };
+    var idx = buildColumnIndex(rows[0]);
+    if (idx.data == null || idx.colaborador == null){
+      return { records:[], error:"Não encontrei as colunas obrigatórias \"data\" e \"colaborador\" no cabeçalho do CSV." };
+    }
+    var out = [];
+    for (var i=1; i<rows.length; i++){
+      var r = rows[i];
+      if (!r || !r.length) continue;
+      var colab = (r[idx.colaborador]||"").trim();
+      if (!colab) continue;
+      var dt = parseDate(r[idx.data]);
+      if (!dt) continue;
+      var tratativaRaw = idx.tratativa != null ? r[idx.tratativa] : "";
+      var rec = {
+        data: dt,
+        dateKey: dateKey(dt),
+        colaborador: colab,
+        matricula: idx.matricula != null ? (r[idx.matricula]||"").trim() : "",
+        gestor: idx.gestor != null ? (r[idx.gestor]||"").trim() || "Sem gestor" : "Sem gestor",
+        setor: idx.setor != null ? (r[idx.setor]||"").trim() || "Sem setor" : "Sem setor",
+        tipo: idx.tipo != null ? (r[idx.tipo]||"").trim() || "Não informado" : "Não informado",
+        situacao: idx.situacao != null ? (r[idx.situacao]||"").trim() : "",
+        status: idx.status != null ? (r[idx.status]||"").trim() || "Pendente" : "Pendente",
+        duracao: idx.duracao != null ? parseNumber(r[idx.duracao]) : 0,
+        destinoExtra: idx.destinoExtra != null ? (r[idx.destinoExtra]||"").trim() : "",
+        tratativa: tratativaRaw ? parseDate(tratativaRaw) : null
+      };
+      out.push(rec);
+    }
+    return { records: out, error: null };
+  }
+
+  /* =========================================================
+     3. RENDERIZAÇÃO DE GRÁFICOS SVG (sem libs externas)
+  ========================================================= */
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  function svgEl(tag, attrs){
+    var el = document.createElementNS(SVG_NS, tag);
+    if (attrs) for (var k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+  function emptyMsg(text){
+    var div = document.createElement("div");
+    div.className = "chart-empty";
+    div.textContent = text || "Sem dados para este filtro.";
+    return div;
+  }
+  function niceMax(v){
+    if (v <= 0) return 1;
+    var mag = Math.pow(10, Math.floor(Math.log10(v)));
+    var norm = v / mag, n;
+    if (norm <= 1) n = 1; else if (norm <= 2) n = 2; else if (norm <= 5) n = 5; else n = 10;
+    return n * mag;
+  }
+  function wireTooltips(svg){
+    var els = svg.querySelectorAll("[data-tooltip]");
+    els.forEach(function(el){
+      el.addEventListener("mousemove", function(e){ showTooltip(e, el.getAttribute("data-tooltip")); });
+      el.addEventListener("mouseleave", hideTooltip);
+    });
+  }
+  function showTooltip(e, text){
+    var tip = $("chartTooltip");
+    tip.textContent = text;
+    var x = e.clientX + 14, y = e.clientY + 14;
+    if (x + 240 > window.innerWidth) x = e.clientX - 240;
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
+    tip.hidden = false;
+  }
+  function hideTooltip(){ $("chartTooltip").hidden = true; }
+
+  function renderBarH(container, items, opts){
+    opts = opts || {};
+    container.innerHTML = "";
+    if (!items.length){ container.appendChild(emptyMsg()); return; }
+    var max = niceMax(Math.max.apply(null, items.map(function(i){ return i.value; })));
+    var rowH = 24, gap = 9, leftW = opts.leftW || 118, rightW = 54, topPad = 4;
+    var W = 520;
+    var H = topPad*2 + items.length*(rowH+gap) - gap;
+    var svg = svgEl("svg", { viewBox: "0 0 " + W + " " + H, class:"chart-svg" });
+    var plotW = W - leftW - rightW;
+    items.forEach(function(it, idx){
+      var y = topPad + idx*(rowH+gap);
+      var w = max ? Math.max(2, (it.value/max) * plotW) : 2;
+      var label = svgEl("text", { x: leftW-8, y: y+rowH/2+4, class:"chart-label", "text-anchor":"end" });
+      label.textContent = truncate(it.label, 20);
+      svg.appendChild(label);
+      svg.appendChild(svgEl("rect", { x:leftW, y:y, width:plotW, height:rowH, class:"chart-track", rx:3 }));
+      var bar = svgEl("rect", { x:leftW, y:y, width:w, height:rowH, fill: it.color || "var(--c-orange)", class:"chart-bar", rx:3, "data-tooltip": it.label + ": " + formatNum(it.value) });
+      svg.appendChild(bar);
+      var val = svgEl("text", { x: leftW + w + 8, y: y+rowH/2+4, class:"chart-value" });
+      val.textContent = formatNum(it.value);
+      svg.appendChild(val);
+    });
+    container.appendChild(svg);
+    wireTooltips(svg);
+  }
+
+  function renderStackedH(container, items, opts){
+    opts = opts || {};
+    container.innerHTML = "";
+    if (!items.length){ container.appendChild(emptyMsg()); return; }
+    var max = niceMax(Math.max.apply(null, items.map(function(i){ return i.a + i.b; })));
+    var rowH = 24, gap = 9, leftW = 118, rightW = 54, topPad = 4;
+    var W = 520;
+    var H = topPad*2 + items.length*(rowH+gap) - gap + 20;
+    var svg = svgEl("svg", { viewBox: "0 0 " + W + " " + H, class:"chart-svg" });
+    var plotW = W - leftW - rightW;
+    // legend
+    var legendY = 10;
+    svg.appendChild(svgEl("rect", { x:leftW, y:0, width:10, height:10, fill: PALETTE[3] }));
+    var t1 = svgEl("text", { x:leftW+14, y:9, class:"axis-label" }); t1.textContent = "Banco de horas"; svg.appendChild(t1);
+    svg.appendChild(svgEl("rect", { x:leftW+110, y:0, width:10, height:10, fill: PALETTE[0] }));
+    var t2 = svgEl("text", { x:leftW+124, y:9, class:"axis-label" }); t2.textContent = "Pagamento"; svg.appendChild(t2);
+
+    items.forEach(function(it, idx){
+      var y = 20 + topPad + idx*(rowH+gap);
+      var wa = max ? (it.a/max) * plotW : 0;
+      var wb = max ? (it.b/max) * plotW : 0;
+      var label = svgEl("text", { x: leftW-8, y: y+rowH/2+4, class:"chart-label", "text-anchor":"end" });
+      label.textContent = truncate(it.label, 20);
+      svg.appendChild(label);
+      svg.appendChild(svgEl("rect", { x:leftW, y:y, width:plotW, height:rowH, class:"chart-track", rx:3 }));
+      if (it.a > 0) svg.appendChild(svgEl("rect", { x:leftW, y:y, width:Math.max(wa,it.a?2:0), height:rowH, fill: PALETTE[3], rx:3, "data-tooltip": it.label + " · Banco de horas: " + formatHoras(it.a) }));
+      if (it.b > 0) svg.appendChild(svgEl("rect", { x:leftW+wa, y:y, width:Math.max(wb,it.b?2:0), height:rowH, fill: PALETTE[0], rx:3, "data-tooltip": it.label + " · Pagamento: " + formatHoras(it.b) }));
+      var val = svgEl("text", { x: leftW + Math.max(wa+wb, 4) + 8, y: y+rowH/2+4, class:"chart-value" });
+      val.textContent = formatHoras(it.a+it.b);
+      svg.appendChild(val);
+    });
+    container.appendChild(svg);
+    wireTooltips(svg);
+  }
+
+  function renderBarV(container, items, opts){
+    opts = opts || {};
+    container.innerHTML = "";
+    if (!items.length){ container.appendChild(emptyMsg()); return; }
+    var max = niceMax(Math.max.apply(null, items.map(function(i){ return i.value; })));
+    var W = 520, H = 230, padL = 34, padR = 8, padT = 8, padB = 26;
+    var plotW = W-padL-padR, plotH = H-padT-padB;
+    var bw = plotW/items.length;
+    var svg = svgEl("svg", { viewBox:"0 0 "+W+" "+H, class:"chart-svg" });
+    [0,0.5,1].forEach(function(f){
+      var y = padT + plotH - f*plotH;
+      svg.appendChild(svgEl("line", { x1:padL, y1:y, x2:W-padR, y2:y, class:"grid-line" }));
+      var t = svgEl("text", { x:padL-6, y:y+3, class:"axis-label", "text-anchor":"end" });
+      t.textContent = formatNum(Math.round(max*f));
+      svg.appendChild(t);
+    });
+    items.forEach(function(it, idx){
+      var x = padL + idx*bw + bw*0.18;
+      var w = bw*0.64;
+      var h = max ? (it.value/max)*plotH : 0;
+      var y = padT + plotH - h;
+      svg.appendChild(svgEl("rect", { x:x, y:y, width:w, height:Math.max(h,0), fill: it.color || "var(--c-navy)", rx:3, class:"chart-bar", "data-tooltip": it.label+": "+formatNum(it.value) }));
+      var lbl = svgEl("text", { x:x+w/2, y:H-padB+16, class:"axis-label", "text-anchor":"middle" });
+      lbl.textContent = it.label;
+      svg.appendChild(lbl);
+    });
+    container.appendChild(svg);
+    wireTooltips(svg);
+  }
+
+  function polar(cx,cy,r,angle){ return [cx + r*Math.cos(angle), cy + r*Math.sin(angle)]; }
+  function donutSegmentPath(cx,cy,rInner,rOuter,a0,a1){
+    var large = (a1-a0) > Math.PI ? 1 : 0;
+    var p0 = polar(cx,cy,rOuter,a0), p1 = polar(cx,cy,rOuter,a1);
+    var p2 = polar(cx,cy,rInner,a1), p3 = polar(cx,cy,rInner,a0);
+    return "M "+p0[0]+" "+p0[1]+" A "+rOuter+" "+rOuter+" 0 "+large+" 1 "+p1[0]+" "+p1[1]+
+           " L "+p2[0]+" "+p2[1]+" A "+rInner+" "+rInner+" 0 "+large+" 0 "+p3[0]+" "+p3[1]+" Z";
+  }
+  function renderDonut(container, items){
+    container.innerHTML = "";
+    var total = items.reduce(function(s,i){ return s+i.value; }, 0);
+    if (!items.length || total <= 0){ container.appendChild(emptyMsg()); return; }
+    var wrap = document.createElement("div");
+    var W=150,H=150,cx=W/2,cy=H/2,rOuter=68,rInner=40;
+    var svg = svgEl("svg", { viewBox:"0 0 "+W+" "+H });
+    if (items.length === 1){
+      svg.appendChild(svgEl("circle", { cx:cx, cy:cy, r:rOuter, fill: items[0].color, "data-tooltip": items[0].label+": "+formatNum(items[0].value)+" (100%)" }));
+      svg.appendChild(svgEl("circle", { cx:cx, cy:cy, r:rInner, fill:"var(--c-card)" }));
+    } else {
+      var angle = -Math.PI/2;
+      items.forEach(function(it){
+        var frac = it.value/total;
+        var a0 = angle, a1 = angle + frac*Math.PI*2;
+        angle = a1;
+        var d = donutSegmentPath(cx,cy,rInner,rOuter,a0,a1);
+        svg.appendChild(svgEl("path", { d:d, fill: it.color, class:"chart-seg", "data-tooltip": it.label+": "+formatNum(it.value)+" ("+(frac*100).toFixed(1)+"%)" }));
+      });
+    }
+    var centerText = svgEl("text", { x:cx, y:cy+6, "text-anchor":"middle", class:"donut-total" });
+    centerText.textContent = formatNum(total);
+    svg.appendChild(centerText);
+    wrap.appendChild(svg);
+    wireTooltips(svg);
+
+    var legend = document.createElement("div");
+    legend.className = "legend";
+    items.forEach(function(it){
+      var row = document.createElement("div");
+      row.className = "legend-row";
+      row.innerHTML = '<span class="legend-dot" style="background:'+it.color+'"></span>'+
+                      '<span class="legend-label">'+escapeHtml(it.label)+'</span>'+
+                      '<span class="legend-value">'+formatNum(it.value)+'</span>';
+      legend.appendChild(row);
+    });
+    container.className = "card-body donut-wrap";
+    container.appendChild(wrap);
+    container.appendChild(legend);
+  }
+
+  function renderLine(container, points){
+    container.innerHTML = "";
+    if (!points.length){ container.appendChild(emptyMsg()); return; }
+    var max = niceMax(Math.max.apply(null, points.map(function(p){ return p.value; }).concat([1])));
+    var W=1040,H=230,padL=36,padR=14,padT=14,padB=28;
+    var plotW=W-padL-padR, plotH=H-padT-padB;
+    var stepX = points.length>1 ? plotW/(points.length-1) : 0;
+    var svg = svgEl("svg", { viewBox:"0 0 "+W+" "+H, class:"chart-svg" });
+    [0,0.5,1].forEach(function(f){
+      var y = padT+plotH-f*plotH;
+      svg.appendChild(svgEl("line", { x1:padL, y1:y, x2:W-padR, y2:y, class:"grid-line" }));
+      var t = svgEl("text", { x:padL-6, y:y+3, class:"axis-label", "text-anchor":"end" });
+      t.textContent = formatNum(Math.round(max*f));
+      svg.appendChild(t);
+    });
+    var coords = points.map(function(p,i){ return [padL+i*stepX, padT+plotH-(p.value/max)*plotH]; });
+    var areaD = "M"+coords.map(function(c){ return c.join(","); }).join(" L ") +
+                " L "+(padL+plotW)+","+(padT+plotH)+" L "+padL+","+(padT+plotH)+" Z";
+    svg.appendChild(svgEl("path", { d:areaD, class:"chart-area" }));
+    var lineD = "M"+coords.map(function(c){ return c.join(","); }).join(" L ");
+    svg.appendChild(svgEl("path", { d:lineD, class:"chart-line", fill:"none" }));
+    coords.forEach(function(c,i){
+      svg.appendChild(svgEl("circle", { cx:c[0], cy:c[1], r:7, class:"chart-hit", "data-tooltip": points[i].label+": "+formatNum(points[i].value) }));
+    });
+    var labelEvery = Math.max(1, Math.ceil(points.length/10));
+    points.forEach(function(p,i){
+      if (i % labelEvery === 0 || i === points.length-1){
+        var t = svgEl("text", { x:coords[i][0], y:H-padB+16, class:"axis-label", "text-anchor":"middle" });
+        t.textContent = p.label;
+        svg.appendChild(t);
+      }
+    });
+    container.appendChild(svg);
+    wireTooltips(svg);
+  }
+
+  /* =========================================================
+     4. AGREGAÇÕES
+  ========================================================= */
+  function countBy(records, keyFn){
+    var map = {};
+    records.forEach(function(r){
+      var k = keyFn(r);
+      map[k] = (map[k]||0) + 1;
+    });
+    return map;
+  }
+
+  function ocorrenciasPorTipo(records){
+    var map = countBy(records, function(r){ return r.tipo; });
+    return Object.keys(map).sort(function(a,b){ return map[b]-map[a]; })
+      .map(function(k){ return { label:k, value:map[k], color: colorFor("tipo", k) }; });
+  }
+  function ocorrenciasPorDiaSemana(records){
+    var map = {}; DIAS_ORDER.forEach(function(d){ map[d]=0; });
+    records.forEach(function(r){ map[r.data.getDay()] = (map[r.data.getDay()]||0)+1; });
+    return DIAS_ORDER.map(function(d,i){ return { label:DIAS_LABELS[i], value:map[d]||0, color:"var(--c-navy)" }; });
+  }
+  function ocorrenciasPorData(records){
+    var map = {};
+    records.forEach(function(r){ map[r.dateKey] = (map[r.dateKey]||0)+1; });
+    return Object.keys(map).sort().map(function(k){
+      var d = new Date(k+"T00:00:00");
+      return { label: String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0"), value: map[k] };
+    });
+  }
+  function ocorrenciasPorGestor(records, limit){
+    var map = countBy(records, function(r){ return r.gestor; });
+    var arr = Object.keys(map).sort(function(a,b){ return map[b]-map[a]; })
+      .map(function(k){ return { label:k, value:map[k], color: colorFor("gestor", k) }; });
+    return limit ? arr.slice(0,limit) : arr;
+  }
+  function ocorrenciasPorSetor(records, limit){
+    var map = countBy(records, function(r){ return r.setor; });
+    var arr = Object.keys(map).sort(function(a,b){ return map[b]-map[a]; })
+      .map(function(k){ return { label:k, value:map[k], color: colorFor("setor", k) }; });
+    return limit ? arr.slice(0,limit) : arr;
+  }
+  function topColaboradores(records, n){
+    var map = countBy(records, function(r){ return r.colaborador; });
+    return Object.keys(map).sort(function(a,b){ return map[b]-map[a]; }).slice(0,n)
+      .map(function(k){ return { label:k, value:map[k], color:"var(--c-orange)" }; });
+  }
+  function extraEFaltaMesmoDia(records, n){
+    var groups = {};
+    records.forEach(function(r){
+      var key = r.colaborador + "|" + r.dateKey;
+      if (!groups[key]) groups[key] = { colaborador:r.colaborador, gestor:r.gestor, hasNeg:false, hasPos:false };
+      if (r.duracao < 0) groups[key].hasNeg = true;
+      if (r.duracao > 0) groups[key].hasPos = true;
+    });
+    var perColab = {};
+    Object.keys(groups).forEach(function(k){
+      var g = groups[k];
+      if (g.hasNeg && g.hasPos){
+        if (!perColab[g.colaborador]) perColab[g.colaborador] = { colaborador:g.colaborador, gestor:g.gestor, dias:0 };
+        perColab[g.colaborador].dias++;
+      }
+    });
+    return Object.values(perColab).sort(function(a,b){ return b.dias-a.dias; }).slice(0,n);
+  }
+  function curtaDuracao(records, n){
+    var perColab = {};
+    records.forEach(function(r){
+      if (r.duracao !== 0 && Math.abs(r.duracao) < 15){
+        if (!perColab[r.colaborador]) perColab[r.colaborador] = { colaborador:r.colaborador, gestor:r.gestor, qtd:0, minutos:0 };
+        perColab[r.colaborador].qtd++;
+        perColab[r.colaborador].minutos += Math.abs(r.duracao);
+      }
+    });
+    return Object.values(perColab).sort(function(a,b){ return b.qtd-a.qtd || b.minutos-a.minutos; }).slice(0,n);
+  }
+  function bancoDeHorasEExtra(records, n){
+    var totals = { banco:0, pagamento:0 };
+    var perColab = {};
+    records.forEach(function(r){
+      if (r.duracao > 0){
+        var destino = r.destinoExtra || "";
+        var isBanco = /banco/i.test(destino);
+        if (isBanco) totals.banco += r.duracao; else totals.pagamento += r.duracao;
+        if (!perColab[r.colaborador]) perColab[r.colaborador] = { label:r.colaborador, a:0, b:0 };
+        if (isBanco) perColab[r.colaborador].a += r.duracao; else perColab[r.colaborador].b += r.duracao;
+      }
+    });
+    var top = Object.values(perColab).sort(function(x,y){ return (y.a+y.b)-(x.a+x.b); }).slice(0,n);
+    return { totals:totals, top:top };
+  }
+  function demoraStats(records, keyFn){
+    var groups = {};
+    records.forEach(function(r){
+      if (!r.tratativa || !r.data) return;
+      var horas = (r.tratativa.getTime() - r.data.getTime()) / 3600000;
+      if (horas < 0) return;
+      var key = keyFn(r);
+      if (!groups[key]) groups[key] = { key:key, list:[] };
+      groups[key].list.push(horas);
+    });
+    return Object.values(groups).map(function(g){
+      var soma = g.list.reduce(function(s,v){ return s+v; }, 0);
+      return { label:g.key, qtd:g.list.length, media: soma/g.list.length, maior: Math.max.apply(null, g.list) };
+    }).sort(function(a,b){ return b.media-a.media; });
+  }
+
+  /* =========================================================
+     5. FILTROS
+  ========================================================= */
+  function uniqueSorted(records, keyFn){
+    var set = {};
+    records.forEach(function(r){ set[keyFn(r)] = true; });
+    return Object.keys(set).sort(function(a,b){ return a.localeCompare(b,"pt-BR"); });
+  }
+
+  function populateFilterOptions(){
+    var gestores = uniqueSorted(state.records, function(r){ return r.gestor; });
+    var setores = uniqueSorted(state.records, function(r){ return r.setor; });
+    var tipos = uniqueSorted(state.records, function(r){ return r.tipo; });
+    var statuses = uniqueSorted(state.records, function(r){ return r.status; });
+    var colaboradores = uniqueSorted(state.records, function(r){ return r.colaborador; });
+
+    var selGestor = $("fGestor");
+    selGestor.innerHTML = '<option value="">Todos os gestores</option>' +
+      gestores.map(function(g){ return '<option value="'+escapeHtml(g)+'">'+escapeHtml(g)+'</option>'; }).join("");
+
+    var selSetor = $("fSetor");
+    selSetor.innerHTML = '<option value="">Todos os setores</option>' +
+      setores.map(function(s){ return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>'; }).join("");
+
+    var colabList = $("colabList");
+    colabList.innerHTML = colaboradores.map(function(c){ return '<option value="'+escapeHtml(c)+'">'; }).join("");
+
+    var tipoGroup = $("fTipo");
+    tipoGroup.innerHTML = "";
+    tipos.forEach(function(t){
+      var chip = document.createElement("div");
+      chip.className = "chip active";
+      chip.textContent = t;
+      chip.dataset.value = t;
+      chip.addEventListener("click", function(){ chip.classList.toggle("active"); applyFilters(); });
+      tipoGroup.appendChild(chip);
+    });
+
+    var statusGroup = $("fStatus");
+    statusGroup.innerHTML = "";
+    statuses.forEach(function(s){
+      var chip = document.createElement("div");
+      chip.className = "chip active";
+      chip.textContent = s;
+      chip.dataset.value = s;
+      chip.addEventListener("click", function(){ chip.classList.toggle("active"); applyFilters(); });
+      statusGroup.appendChild(chip);
+    });
+
+    // pré-preenche o período com o intervalo total dos dados
+    if (state.records.length){
+      var dates = state.records.map(function(r){ return r.data.getTime(); });
+      var minD = new Date(Math.min.apply(null, dates));
+      var maxD = new Date(Math.max.apply(null, dates));
+      $("fDataIni").value = toISODate(minD);
+      $("fDataFim").value = toISODate(maxD);
+    }
+  }
+  function toISODate(d){
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  }
+
+  function activeChipValues(container){
+    var set = {};
+    container.querySelectorAll(".chip.active").forEach(function(c){ set[c.dataset.value] = true; });
+    return set;
+  }
+
+  function getFilteredRecords(){
+    var gestor = $("fGestor").value;
+    var setor = $("fSetor").value;
+    var colabQuery = stripAccents($("fColab").value.trim().toLowerCase());
+    var tipoSet = activeChipValues($("fTipo"));
+    var statusSet = activeChipValues($("fStatus"));
+    var tipoAll = Object.keys(tipoSet).length === document.querySelectorAll("#fTipo .chip").length;
+    var statusAll = Object.keys(statusSet).length === document.querySelectorAll("#fStatus .chip").length;
+    var dIni = $("fDataIni").value ? new Date($("fDataIni").value+"T00:00:00") : null;
+    var dFim = $("fDataFim").value ? new Date($("fDataFim").value+"T23:59:59") : null;
+
+    return state.records.filter(function(r){
+      if (gestor && r.gestor !== gestor) return false;
+      if (setor && r.setor !== setor) return false;
+      if (colabQuery && stripAccents(r.colaborador.toLowerCase()).indexOf(colabQuery) === -1) return false;
+      if (!tipoAll && !tipoSet[r.tipo]) return false;
+      if (!statusAll && !statusSet[r.status]) return false;
+      if (dIni && r.data < dIni) return false;
+      if (dFim && r.data > dFim) return false;
+      return true;
+    });
+  }
+
+  /* =========================================================
+     6. RENDERIZAÇÃO GERAL DO DASHBOARD
+  ========================================================= */
+  function renderKPIs(records){
+    var colaboradoresSet = {};
+    records.forEach(function(r){ colaboradoresSet[r.colaborador] = true; });
+    var totalColaboradores = Object.keys(colaboradoresSet).length;
+    var totalGeral = Object.keys(colaboradoresSet).length ? uniqueSorted(state.records, function(r){ return r.colaborador; }).length : 0;
+
+    $("kpiColaboradores").textContent = formatNum(totalColaboradores);
+    $("kpiColaboradoresSub").textContent = "de " + formatNum(totalGeral) + " no arquivo carregado";
+
+    $("kpiOcorrencias").textContent = formatNum(records.length);
+    $("kpiOcorrenciasSub").textContent = records.length ? (formatDateSpan(records)) : "";
+
+    var extraTotal = 0, faltaTotal = 0, bancoTotal = 0;
+    records.forEach(function(r){
+      if (r.duracao > 0){
+        extraTotal += r.duracao;
+        if (/banco/i.test(r.destinoExtra||"")) bancoTotal += r.duracao;
+      } else if (r.duracao < 0){
+        faltaTotal += Math.abs(r.duracao);
+      }
+    });
+    $("kpiExtra").textContent = formatHoras(extraTotal);
+    $("kpiFalta").textContent = formatHoras(faltaTotal);
+    $("kpiBanco").textContent = formatHoras(bancoTotal);
+
+    var demoras = [];
+    records.forEach(function(r){
+      if (r.tratativa && r.data){
+        var h = (r.tratativa.getTime()-r.data.getTime())/3600000;
+        if (h >= 0) demoras.push(h);
+      }
+    });
+    if (demoras.length){
+      var media = demoras.reduce(function(s,v){ return s+v; },0)/demoras.length;
+      $("kpiDemora").innerHTML = formatDelay(media);
+      $("kpiDemoraSub").textContent = formatNum(demoras.length) + " ocorrências tratadas";
+    } else {
+      $("kpiDemora").innerHTML = "&ndash;";
+      $("kpiDemoraSub").textContent = "Nenhuma tratativa registrada";
+    }
+  }
+  function formatDateSpan(records){
+    var dates = records.map(function(r){ return r.data.getTime(); });
+    var minD = new Date(Math.min.apply(null,dates)), maxD = new Date(Math.max.apply(null,dates));
+    return formatDateBR(minD) + " a " + formatDateBR(maxD);
+  }
+
+  function renderTableSimple(container, columns, rows, opts){
+    opts = opts || {};
+    if (!rows.length){ container.innerHTML=""; container.appendChild(emptyMsg()); return; }
+    var html = '<div class="table-scroll' + (opts.short ? '' : '') + '"><table class="data-table"><thead><tr>';
+    columns.forEach(function(c){ html += "<th>"+escapeHtml(c.label)+"</th>"; });
+    html += "</tr></thead><tbody>";
+    rows.forEach(function(row){
+      html += "<tr>";
+      columns.forEach(function(c){ html += "<td>"+c.render(row)+"</td>"; });
+      html += "</tr>";
+    });
+    html += "</tbody></table></div>";
+    container.innerHTML = html;
+  }
+
+  function renderDashboard(){
+    var records = getFilteredRecords();
+
+    renderKPIs(records);
+
+    renderDonut($("chartTipo"), ocorrenciasPorTipo(records));
+    renderBarV($("chartDiaSemana"), ocorrenciasPorDiaSemana(records));
+    renderLine($("chartPorData"), ocorrenciasPorData(records));
+    renderBarH($("chartPorGestor"), ocorrenciasPorGestor(records, 12));
+    renderBarH($("chartPorSetor"), ocorrenciasPorSetor(records, 12));
+
+    renderBarH($("chartTopColaboradores"), topColaboradores(records, 10));
+
+    renderTableSimple($("tableExtraFalta"),
+      [{label:"Colaborador", render:function(r){return escapeHtml(r.colaborador);}},
+       {label:"Gestor", render:function(r){return escapeHtml(r.gestor);}},
+       {label:"Dias", render:function(r){return '<strong>'+r.dias+'</strong>';}}],
+      extraEFaltaMesmoDia(records, 10));
+
+    renderTableSimple($("tableCurtas"),
+      [{label:"Colaborador", render:function(r){return escapeHtml(r.colaborador);}},
+       {label:"Ocorrências", render:function(r){return r.qtd;}},
+       {label:"Minutos", render:function(r){return formatNum(r.minutos);}}],
+      curtaDuracao(records, 10));
+
+    var banco = bancoDeHorasEExtra(records, 10);
+    renderStackedH($("chartBancoHoras"), banco.top);
+
+    renderTableSimple($("tableDemoraGestor"),
+      [{label:"Gestor", render:function(r){return escapeHtml(r.label);}},
+       {label:"Ocorrências tratadas", render:function(r){return formatNum(r.qtd);}},
+       {label:"Demora média", render:function(r){return formatDelay(r.media);}},
+       {label:"Maior demora", render:function(r){return formatDelay(r.maior);}}],
+      demoraStats(records, function(r){ return r.gestor; }));
+
+    renderTableSimple($("tableDemoraColaborador"),
+      [{label:"Colaborador", render:function(r){return escapeHtml(r.label);}},
+       {label:"Ocorrências tratadas", render:function(r){return formatNum(r.qtd);}},
+       {label:"Demora média", render:function(r){return formatDelay(r.media);}},
+       {label:"Maior demora", render:function(r){return formatDelay(r.maior);}}],
+      demoraStats(records, function(r){ return r.colaborador; }));
+
+    renderHistory(records);
+  }
+
+  /* =========================================================
+     7. HISTÓRICO (tabela com busca, ordenação e paginação)
+  ========================================================= */
+  var historyRecordsCache = [];
+
+  function renderHistory(records){
+    historyRecordsCache = records;
+    state.historyPage = 1;
+    drawHistory();
+  }
+
+  function drawHistory(){
+    var search = stripAccents($("historySearch").value.trim().toLowerCase());
+    var rows = historyRecordsCache.filter(function(r){
+      if (!search) return true;
+      var hay = stripAccents((r.colaborador+" "+r.gestor+" "+r.setor+" "+r.tipo+" "+r.situacao+" "+r.status).toLowerCase());
+      return hay.indexOf(search) > -1;
+    });
+
+    var key = state.historySort.key, dir = state.historySort.dir;
+    rows = rows.slice().sort(function(a,b){
+      var va, vb;
+      if (key === "data"){ va=a.data.getTime(); vb=b.data.getTime(); }
+      else { va=(a[key]||"").toLowerCase(); vb=(b[key]||"").toLowerCase(); }
+      if (va < vb) return dir === "asc" ? -1 : 1;
+      if (va > vb) return dir === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    $("historyCount").textContent = formatNum(rows.length) + " ocorrência(s)";
+
+    var pageSize = state.historyPageSize;
+    var totalPages = Math.max(1, Math.ceil(rows.length/pageSize));
+    if (state.historyPage > totalPages) state.historyPage = totalPages;
+    var start = (state.historyPage-1)*pageSize;
+    var pageRows = rows.slice(start, start+pageSize);
+
+    var body = $("historyBody");
+    if (!pageRows.length){
+      body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--c-muted-2);padding:20px;">Nenhuma ocorrência encontrada.</td></tr>';
+    } else {
+      body.innerHTML = pageRows.map(function(r){
+        return "<tr>"+
+          "<td>"+formatDateBR(r.data)+"</td>"+
+          "<td>"+escapeHtml(r.colaborador)+"</td>"+
+          "<td>"+escapeHtml(r.gestor)+"</td>"+
+          "<td>"+escapeHtml(r.setor)+"</td>"+
+          "<td>"+escapeHtml(r.tipo)+"</td>"+
+          "<td>"+escapeHtml(r.situacao)+"</td>"+
+          "<td><span class=\"status-pill status-"+escapeHtml(r.status)+"\">"+escapeHtml(r.status)+"</span></td>"+
+        "</tr>";
+      }).join("");
+    }
+
+    document.querySelectorAll("#historyTable th").forEach(function(th){
+      th.classList.remove("sorted-asc","sorted-desc");
+      if (th.dataset.key === key) th.classList.add(dir==="asc"?"sorted-asc":"sorted-desc");
+    });
+
+    var pag = $("historyPagination");
+    pag.innerHTML = "";
+    var info = document.createElement("span");
+    info.textContent = "Página " + state.historyPage + " de " + totalPages;
+    var prev = document.createElement("button");
+    prev.textContent = "‹ Anterior"; prev.disabled = state.historyPage<=1;
+    prev.addEventListener("click", function(){ state.historyPage--; drawHistory(); });
+    var next = document.createElement("button");
+    next.textContent = "Próxima ›"; next.disabled = state.historyPage>=totalPages;
+    next.addEventListener("click", function(){ state.historyPage++; drawHistory(); });
+    pag.appendChild(prev); pag.appendChild(info); pag.appendChild(next);
+  }
+
+  document.querySelectorAll("#historyTable th").forEach(function(th){
+    th.addEventListener("click", function(){
+      var key = th.dataset.key;
+      if (state.historySort.key === key){
+        state.historySort.dir = state.historySort.dir === "asc" ? "desc" : "asc";
+      } else {
+        state.historySort.key = key;
+        state.historySort.dir = key === "data" ? "desc" : "asc";
+      }
+      state.historyPage = 1;
+      drawHistory();
+    });
+  });
+  $("historySearch").addEventListener("input", function(){ state.historyPage = 1; drawHistory(); });
+
+  /* =========================================================
+     8. CARREGAMENTO DE ARQUIVO E EVENTOS
+  ========================================================= */
+  function handleFile(file){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var result = recordsFromCSV(String(e.target.result));
+      if (result.error || !result.records.length){
+        alert("Não foi possível ler este CSV.\n" + (result.error || "Nenhuma linha válida encontrada.") +
+              "\n\nVerifique se o arquivo segue o modelo (modelo-dados.csv) fornecido pelo RH.");
+        return;
+      }
+      state.records = result.records;
+      state.colorMaps = { gestor:{}, setor:{}, tipo:{}, status:{} };
+
+      $("fileStatus").textContent = file.name + " · " + formatNum(state.records.length) + " ocorrências";
+      $("fileSummaryName").textContent = file.name;
+      $("fileSummaryMeta").textContent = formatNum(state.records.length) + " ocorrências carregadas";
+      $("fileSummary").hidden = false;
+      $("dropZone").hidden = true;
+      $("resetBtn").hidden = false;
+      $("filtersBlock").hidden = false;
+
+      $("emptyState").hidden = true;
+      $("kpiRow").hidden = false;
+      $("dashboardBody").hidden = false;
+
+      populateFilterOptions();
+      renderDashboard();
+    };
+    reader.onerror = function(){ alert("Erro ao ler o arquivo. Tente novamente."); };
+    reader.readAsText(file, "UTF-8");
+  }
+
+  $("fileInput").addEventListener("change", function(e){
+    if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  var dropZone = $("dropZone");
+  ["dragenter","dragover"].forEach(function(evt){
+    dropZone.addEventListener(evt, function(e){ e.preventDefault(); dropZone.classList.add("dragover"); });
+  });
+  ["dragleave","drop"].forEach(function(evt){
+    dropZone.addEventListener(evt, function(e){ e.preventDefault(); dropZone.classList.remove("dragover"); });
+  });
+  dropZone.addEventListener("drop", function(e){
+    var f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+
+  $("resetBtn").addEventListener("click", function(){
+    state.records = [];
+    $("fileInput").value = "";
+    $("fileSummary").hidden = true;
+    $("dropZone").hidden = false;
+    $("resetBtn").hidden = true;
+    $("filtersBlock").hidden = true;
+    $("emptyState").hidden = false;
+    $("kpiRow").hidden = true;
+    $("dashboardBody").hidden = true;
+    $("fileStatus").textContent = "Nenhum arquivo carregado";
+  });
+
+  ["fGestor","fSetor"].forEach(function(id){ $(id).addEventListener("change", applyFilters); });
+  $("fColab").addEventListener("input", debounce(applyFilters, 200));
+  $("fDataIni").addEventListener("change", applyFilters);
+  $("fDataFim").addEventListener("change", applyFilters);
+  $("clearFilters").addEventListener("click", function(){
+    $("fGestor").value = ""; $("fSetor").value = ""; $("fColab").value = "";
+    document.querySelectorAll(".chip").forEach(function(c){ c.classList.add("active"); });
+    if (state.records.length){
+      var dates = state.records.map(function(r){ return r.data.getTime(); });
+      $("fDataIni").value = toISODate(new Date(Math.min.apply(null,dates)));
+      $("fDataFim").value = toISODate(new Date(Math.max.apply(null,dates)));
+    }
+    applyFilters();
+  });
+
+  function applyFilters(){ if (state.records.length) renderDashboard(); }
+  function debounce(fn, wait){
+    var t; return function(){ clearTimeout(t); var args=arguments; t=setTimeout(function(){ fn.apply(null,args); }, wait); };
+  }
+
+})();
+</script>
+</body>
+</html>
