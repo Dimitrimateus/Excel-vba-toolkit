@@ -24,6 +24,7 @@ Colunas esperadas (a ordem das colunas não importa, o que importa é o nome do 
 | `matricula` | Não | Matrícula/ID do colaborador, útil se houver homônimos. | `5242` |
 | `gestor` | Não* | Gestor responsável pelo colaborador. | `Marina Souza` |
 | `setor` | Não* | Setor/área do colaborador. | `Produção` |
+| `cargo` | Não* | Cargo/função do colaborador (usada no gráfico "Ocorrências por cargo"). | `Auxiliar de Logística` |
 | `tipo_ocorrencia` | Não* | Tipo da ocorrência. | `Atraso`, `Falta`, `Saída Antecipada`, `Hora Extra`, `Esquecimento de Registro`, `Abono` |
 | `situacao` | Não | Descrição/justificativa da ocorrência (aparece no histórico). | `Atraso na entrada` |
 | `status` | Não | Situação do tratamento da ocorrência. | `Pendente`, `Aprovado`, `Reprovado`, `Regularizado` |
@@ -31,7 +32,7 @@ Colunas esperadas (a ordem das colunas não importa, o que importa é o nome do 
 | `destino_horas_extra` | Não | Só faz sentido quando `duracao_minutos` é positivo. | `Banco de Horas` ou `Pagamento` |
 | `data_tratativa_pontonet` | Não | Data (e hora, se tiver) em que a ocorrência foi tratada/aprovada/regularizada no PontoNet. Usada para calcular a demora. | `25/08/2026 14:30` |
 
-`* `Se a coluna não existir ou vier vazia numa linha, o painel usa "Sem gestor" / "Sem setor" / "Não informado" no lugar, mas os gráficos correspondentes perdem o sentido. Vale a pena preencher.
+`* `Se a coluna não existir ou vier vazia numa linha, o painel usa "Sem gestor" / "Sem setor" / "Sem cargo" / "Não informado" no lugar, mas os gráficos correspondentes perdem o sentido. Vale a pena preencher.
 
 Detalhes que o painel já resolve automaticamente:
 - Aceita CSV separado por vírgula ou por ponto e vírgula (comum em exportações do Excel em português).

@@ -162,10 +162,10 @@
   .chip-group{ display:flex; flex-wrap:wrap; gap:6px; }
   .chip{
     font-size:11.5px; padding:6px 11px; border-radius:var(--radius-pill);
-    border:1px solid var(--c-line-strong); background:var(--c-paper); color:var(--c-muted);
+    border:1px solid var(--c-line-strong); background:#FFFFFF; color:var(--c-muted);
     cursor:pointer; user-select:none;
   }
-  .chip.active{ background:var(--c-navy); border-color:var(--c-navy); color:#fff; }
+  .chip.active{ background:#D8D9DA; border-color:#B7B8B9; color:#1A1A1A; }
 
   /* ---------- Empty state ---------- */
   .empty-state{
@@ -211,7 +211,7 @@
   .card.wide{ grid-column:1 / -1; }
   .card-title{ font-size:14px; color:var(--c-navy-dark); margin-bottom:2px; }
   .card-hint{ font-size:11px; color:var(--c-muted-2); margin-bottom:10px; }
-  .card-body{ min-height:40px; }
+  .card-body{ min-height:40px; overflow:hidden; }
 
   .chart-empty{ font-size:12.5px; color:var(--c-muted-2); padding:30px 10px; text-align:center; }
 
@@ -374,9 +374,9 @@
             <div class="card-body" id="chartPorGestor"></div>
           </div>
           <div class="card">
-            <div class="card-title">Ocorrências por setor</div>
-            <div class="card-hint">Volume de ocorrências por setor/área</div>
-            <div class="card-body" id="chartPorSetor"></div>
+            <div class="card-title">Ocorrências por cargo</div>
+            <div class="card-hint">Volume de ocorrências por cargo/função</div>
+            <div class="card-body" id="chartPorCargo"></div>
           </div>
         </section>
 
@@ -524,6 +524,7 @@
     matricula: ["matricula","matricula_colaborador","codigo","id"],
     gestor:    ["gestor","gestor_responsavel","supervisor","lider"],
     setor:     ["setor","departamento","area"],
+    cargo:     ["cargo","funcao","função","cargo_funcao"],
     tipo:      ["tipo_ocorrencia","tipo","ocorrencia","tipo_de_ocorrencia"],
     situacao:  ["situacao","descricao","observacao","justificativa"],
     status:    ["status","status_ocorrencia","situacao_status"],
@@ -534,7 +535,7 @@
 
   var state = {
     records: [],
-    colorMaps: { gestor:{}, setor:{}, tipo:{}, status:{} },
+    colorMaps: { gestor:{}, setor:{}, cargo:{}, tipo:{}, status:{} },
     historySort: { key:"data", dir:"desc" },
     historyPage: 1,
     historyPageSize: 25
@@ -692,6 +693,7 @@
         matricula: idx.matricula != null ? (r[idx.matricula]||"").trim() : "",
         gestor: idx.gestor != null ? (r[idx.gestor]||"").trim() || "Sem gestor" : "Sem gestor",
         setor: idx.setor != null ? (r[idx.setor]||"").trim() || "Sem setor" : "Sem setor",
+        cargo: idx.cargo != null ? (r[idx.cargo]||"").trim() || "Sem cargo" : "Sem cargo",
         tipo: idx.tipo != null ? (r[idx.tipo]||"").trim() || "Não informado" : "Não informado",
         situacao: idx.situacao != null ? (r[idx.situacao]||"").trim() : "",
         status: idx.status != null ? (r[idx.status]||"").trim() || "Pendente" : "Pendente",
@@ -749,7 +751,7 @@
     container.innerHTML = "";
     if (!items.length){ container.appendChild(emptyMsg()); return; }
     var max = niceMax(Math.max.apply(null, items.map(function(i){ return i.value; })));
-    var rowH = 24, gap = 9, leftW = opts.leftW || 118, rightW = 54, topPad = 4;
+    var rowH = 24, gap = 9, leftW = opts.leftW || 128, rightW = 54, topPad = 4;
     var W = 520;
     var H = topPad*2 + items.length*(rowH+gap) - gap;
     var svg = svgEl("svg", { viewBox: "0 0 " + W + " " + H, class:"chart-svg" });
@@ -758,7 +760,7 @@
       var y = topPad + idx*(rowH+gap);
       var w = max ? Math.max(2, (it.value/max) * plotW) : 2;
       var label = svgEl("text", { x: leftW-8, y: y+rowH/2+4, class:"chart-label", "text-anchor":"end" });
-      label.textContent = truncate(it.label, 20);
+      label.textContent = truncate(it.label, 15);
       svg.appendChild(label);
       svg.appendChild(svgEl("rect", { x:leftW, y:y, width:plotW, height:rowH, class:"chart-track", rx:3 }));
       var bar = svgEl("rect", { x:leftW, y:y, width:w, height:rowH, fill: it.color || "var(--c-orange)", class:"chart-bar", rx:3, "data-tooltip": it.label + ": " + formatNum(it.value) });
@@ -776,7 +778,7 @@
     container.innerHTML = "";
     if (!items.length){ container.appendChild(emptyMsg()); return; }
     var max = niceMax(Math.max.apply(null, items.map(function(i){ return i.a + i.b; })));
-    var rowH = 24, gap = 9, leftW = 118, rightW = 54, topPad = 4;
+    var rowH = 24, gap = 9, leftW = 128, rightW = 54, topPad = 4;
     var W = 520;
     var H = topPad*2 + items.length*(rowH+gap) - gap + 20;
     var svg = svgEl("svg", { viewBox: "0 0 " + W + " " + H, class:"chart-svg" });
@@ -793,7 +795,7 @@
       var wa = max ? (it.a/max) * plotW : 0;
       var wb = max ? (it.b/max) * plotW : 0;
       var label = svgEl("text", { x: leftW-8, y: y+rowH/2+4, class:"chart-label", "text-anchor":"end" });
-      label.textContent = truncate(it.label, 20);
+      label.textContent = truncate(it.label, 15);
       svg.appendChild(label);
       svg.appendChild(svgEl("rect", { x:leftW, y:y, width:plotW, height:rowH, class:"chart-track", rx:3 }));
       if (it.a > 0) svg.appendChild(svgEl("rect", { x:leftW, y:y, width:Math.max(wa,it.a?2:0), height:rowH, fill: "#FFC72C", rx:3, "data-tooltip": it.label + " · Banco de horas: " + formatHoras(it.a) }));
@@ -957,10 +959,10 @@
       .map(function(k){ return { label:k, value:map[k], color: colorFor("gestor", k) }; });
     return limit ? arr.slice(0,limit) : arr;
   }
-  function ocorrenciasPorSetor(records, limit){
-    var map = countBy(records, function(r){ return r.setor; });
+  function ocorrenciasPorCargo(records, limit){
+    var map = countBy(records, function(r){ return r.cargo; });
     var arr = Object.keys(map).sort(function(a,b){ return map[b]-map[a]; })
-      .map(function(k){ return { label:k, value:map[k], color: colorFor("setor", k) }; });
+      .map(function(k){ return { label:k, value:map[k], color: colorFor("cargo", k) }; });
     return limit ? arr.slice(0,limit) : arr;
   }
   function topColaboradores(records, n){
@@ -1059,7 +1061,7 @@
     tipoGroup.innerHTML = "";
     tipos.forEach(function(t){
       var chip = document.createElement("div");
-      chip.className = "chip active";
+      chip.className = "chip";
       chip.textContent = t;
       chip.dataset.value = t;
       chip.addEventListener("click", function(){ chip.classList.toggle("active"); applyFilters(); });
@@ -1070,7 +1072,7 @@
     statusGroup.innerHTML = "";
     statuses.forEach(function(s){
       var chip = document.createElement("div");
-      chip.className = "chip active";
+      chip.className = "chip";
       chip.textContent = s;
       chip.dataset.value = s;
       chip.addEventListener("click", function(){ chip.classList.toggle("active"); applyFilters(); });
@@ -1102,8 +1104,8 @@
     var colabQuery = stripAccents($("fColab").value.trim().toLowerCase());
     var tipoSet = activeChipValues($("fTipo"));
     var statusSet = activeChipValues($("fStatus"));
-    var tipoAll = Object.keys(tipoSet).length === document.querySelectorAll("#fTipo .chip").length;
-    var statusAll = Object.keys(statusSet).length === document.querySelectorAll("#fStatus .chip").length;
+    var tipoAll = Object.keys(tipoSet).length === 0;
+    var statusAll = Object.keys(statusSet).length === 0;
     var dIni = $("fDataIni").value ? new Date($("fDataIni").value+"T00:00:00") : null;
     var dFim = $("fDataFim").value ? new Date($("fDataFim").value+"T23:59:59") : null;
 
@@ -1193,7 +1195,7 @@
     renderBarV($("chartDiaSemana"), ocorrenciasPorDiaSemana(records));
     renderLine($("chartPorData"), ocorrenciasPorData(records));
     renderBarH($("chartPorGestor"), ocorrenciasPorGestor(records, 12));
-    renderBarH($("chartPorSetor"), ocorrenciasPorSetor(records, 12));
+    renderBarH($("chartPorCargo"), ocorrenciasPorCargo(records, 12));
 
     renderBarH($("chartTopColaboradores"), topColaboradores(records, 10));
 
@@ -1329,7 +1331,7 @@
         return;
       }
       state.records = result.records;
-      state.colorMaps = { gestor:{}, setor:{}, tipo:{}, status:{} };
+      state.colorMaps = { gestor:{}, setor:{}, cargo:{}, tipo:{}, status:{} };
 
       $("fileStatus").textContent = file.name + " · " + formatNum(state.records.length) + " ocorrências";
       $("fileSummaryName").textContent = file.name;
@@ -1385,7 +1387,7 @@
   $("fDataFim").addEventListener("change", applyFilters);
   $("clearFilters").addEventListener("click", function(){
     $("fGestor").value = ""; $("fSetor").value = ""; $("fColab").value = "";
-    document.querySelectorAll(".chip").forEach(function(c){ c.classList.add("active"); });
+    document.querySelectorAll(".chip").forEach(function(c){ c.classList.remove("active"); });
     if (state.records.length){
       var dates = state.records.map(function(r){ return r.data.getTime(); });
       $("fDataIni").value = toISODate(new Date(Math.min.apply(null,dates)));

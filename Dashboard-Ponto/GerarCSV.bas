@@ -24,18 +24,30 @@ Option Explicit
 '      um arquivo .csv por gestor, mais um "dados_TODOS.csv" com tudo
 '      (esse último é o que vai para o supervisor geral).
 '
-' Pontos que dependem de uma regra de negócio que eu não consegui
-' confirmar só olhando os dados (procure "REGRA:" abaixo):
+' Regras já confirmadas com o RH:
+'   - Linhas com Situação = "Sem alteração" são excluídas (não são
+'     ocorrência real).
+'   - Linhas com a coluna "Check" = "S" também são excluídas: "S"
+'     marca casos que o sistema aponta como ocorrência mas que na
+'     prática não têm problema (ex.: 1 minuto de hora extra). Só as
+'     marcadas "N" entram no CSV.
+'   - A coluna "Cargo" já existe na aba Tratamento (adicionada pelo
+'     RH) e é usada direto; só cai no lookup pela "RE 08.09" quando
+'     vier vazia.
+'
+' Pontos que ainda dependem de uma regra de negócio que eu não
+' consegui confirmar só olhando os dados (procure "REGRA:" abaixo):
 '   - Como decidir se uma hora extra foi para BANCO DE HORAS ou para
 '     PAGAMENTO (a aba "Tratamento" não tem essa informação separada).
 '   - Como mapear os status reais (Tratado/Tratando/Tratar/vazio) para
 '     o vocabulário Pendente/Aprovado/Reprovado/Regularizado do painel.
-'   - Se linhas com Situação = "Sem alteração" devem ou não entrar
-'     no CSV (por padrão, este código EXCLUI essas linhas).
 ' =====================================================================
 
 ' ---- Regras configuráveis -------------------------------------------
 Private Const INCLUIR_SEM_ALTERACAO As Boolean = False
+' "S" = ocorrência sem problema real (confirmado pelo RH); mude para
+' um array maior se algum dia existir um terceiro valor válido.
+Private Const VALOR_CHECK_IGNORAR As String = "S"
 ' REGRA: sem informação separada de banco de horas x pagamento na aba
 ' Tratamento. Por padrão toda hora extra fica com destino em branco
 ' (o painel trata "em branco" como Pagamento). Ajuste aqui se preciso.
@@ -75,7 +87,7 @@ Public Sub GerarAbaCSV()
     Dim r As Long
     For r = 2 To ultimaLinha
 
-        Dim matricula As String, nome As String, gestor As String, situacao As String, statusTxt As String
+        Dim matricula As String, nome As String, gestor As String, situacao As String, statusTxt As String, checkTxt As String
         Dim dataOcorrencia As Variant
 
         matricula = Trim$(CStr(wsTrat.Cells(r, colIdx("Matricula")).Value))
@@ -84,8 +96,11 @@ Public Sub GerarAbaCSV()
         situacao = Trim$(CStr(wsTrat.Cells(r, colIdx("Situação")).Value))
         statusTxt = Trim$(CStr(wsTrat.Cells(r, colIdx("Status")).Value))
         dataOcorrencia = wsTrat.Cells(r, colIdx("Data")).Value
+        checkTxt = ""
+        If colIdx.Exists("Check") Then checkTxt = Trim$(CStr(wsTrat.Cells(r, colIdx("Check")).Value))
 
         If nome = "" Or Not IsDate(dataOcorrencia) Then GoTo ProximaLinha
+        If UCase$(checkTxt) = VALOR_CHECK_IGNORAR Then GoTo ProximaLinha
         If Not INCLUIR_SEM_ALTERACAO And (situacao = "" Or situacao = "Sem alteração") Then GoTo ProximaLinha
 
         Dim minExtra As Double, minExtra100 As Double, minFalta As Double
@@ -93,8 +108,11 @@ Public Sub GerarAbaCSV()
         minExtra100 = NzNum(wsTrat.Cells(r, colIdx("Extra 100%")).Value) * 24 * 60
         minFalta = NzNum(wsTrat.Cells(r, colIdx("Faltas")).Value) * 24 * 60
 
-        Dim setorNome As String, cargoNome As String
+        Dim setorNome As String, cargoNome As String, cargoTratamento As String
         ObterSetorCargo dictRE, matricula, setorNome, cargoNome
+        cargoTratamento = ""
+        If colIdx.Exists("Cargo") Then cargoTratamento = Trim$(CStr(wsTrat.Cells(r, colIdx("Cargo")).Value))
+        If cargoTratamento <> "" Then cargoNome = cargoTratamento
 
         Dim situacaoTexto As String, avaliadoEm As Variant, temTratativa As Boolean
         ObterDadosAusencia dictAus, matricula, dataOcorrencia, situacaoTexto, avaliadoEm, temTratativa
@@ -110,7 +128,7 @@ Public Sub GerarAbaCSV()
         ' Não recebe a demora do PontoNet: essa demora é sobre a
         ' justificativa de ausência de marcação, não sobre a extra.
         If (minExtra + minExtra100) > 0 Then
-            EscreverLinhaCSV wsCSV, linhaSaida, dataOcorrencia, nome, matricula, gestor, setorNome, _
+            EscreverLinhaCSV wsCSV, linhaSaida, dataOcorrencia, nome, matricula, gestor, setorNome, cargoNome, _
                 "Hora Extra", situacaoFinal, statusFinal, Round(minExtra + minExtra100, 0), _
                 DESTINO_HORA_EXTRA_PADRAO, Empty
             linhaSaida = linhaSaida + 1
@@ -118,7 +136,7 @@ Public Sub GerarAbaCSV()
 
         ' Linha de FALTA/ATRASO, se houver.
         If minFalta > 0 Then
-            EscreverLinhaCSV wsCSV, linhaSaida, dataOcorrencia, nome, matricula, gestor, setorNome, _
+            EscreverLinhaCSV wsCSV, linhaSaida, dataOcorrencia, nome, matricula, gestor, setorNome, cargoNome, _
                 situacao, situacaoFinal, statusFinal, -Round(minFalta, 0), "", _
                 IIf(temTratativa, avaliadoEm, Empty)
             linhaSaida = linhaSaida + 1
@@ -127,9 +145,9 @@ Public Sub GerarAbaCSV()
         ' Ocorrência sem impacto de horas (ex.: Registro duplo,
         ' Problema horário, Sem marcação já corrigida) - ainda entra
         ' no CSV com duracao_minutos = 0, só para contar nos gráficos
-        ' de tipo/gestor/setor/data.
+        ' de tipo/gestor/cargo/setor/data.
         If (minExtra + minExtra100) = 0 And minFalta = 0 Then
-            EscreverLinhaCSV wsCSV, linhaSaida, dataOcorrencia, nome, matricula, gestor, setorNome, _
+            EscreverLinhaCSV wsCSV, linhaSaida, dataOcorrencia, nome, matricula, gestor, setorNome, cargoNome, _
                 situacao, situacaoFinal, statusFinal, 0, "", _
                 IIf(temTratativa, avaliadoEm, Empty)
             linhaSaida = linhaSaida + 1
@@ -373,7 +391,7 @@ Private Function PrepararAbaCSV(wb As Workbook) As Worksheet
     End If
 
     Dim cabecalhos As Variant, i As Long
-    cabecalhos = Array("data", "colaborador", "matricula", "gestor", "setor", "tipo_ocorrencia", _
+    cabecalhos = Array("data", "colaborador", "matricula", "gestor", "setor", "cargo", "tipo_ocorrencia", _
                         "situacao", "status", "duracao_minutos", "destino_horas_extra", "data_tratativa_pontonet")
     For i = LBound(cabecalhos) To UBound(cabecalhos)
         ws.Cells(1, i + 1).Value = cabecalhos(i)
@@ -385,23 +403,24 @@ End Function
 
 ' Ordem das colunas tem que casar com PrepararAbaCSV.
 Private Sub EscreverLinhaCSV(ws As Worksheet, linha As Long, dataOcorrencia As Variant, nome As String, _
-    matricula As String, gestor As String, setorNome As String, tipoOcorrencia As String, situacaoTxt As String, _
-    statusTxt As String, duracaoMinutos As Double, destinoExtra As String, tratativa As Variant)
+    matricula As String, gestor As String, setorNome As String, cargoNome As String, tipoOcorrencia As String, _
+    situacaoTxt As String, statusTxt As String, duracaoMinutos As Double, destinoExtra As String, tratativa As Variant)
 
     ws.Cells(linha, 1).Value = CDate(dataOcorrencia)
     ws.Cells(linha, 2).Value = nome
     ws.Cells(linha, 3).Value = matricula
     ws.Cells(linha, 4).Value = gestor
     ws.Cells(linha, 5).Value = setorNome
-    ws.Cells(linha, 6).Value = tipoOcorrencia
-    ws.Cells(linha, 7).Value = situacaoTxt
-    ws.Cells(linha, 8).Value = statusTxt
-    ws.Cells(linha, 9).Value = duracaoMinutos
-    ws.Cells(linha, 10).Value = destinoExtra
+    ws.Cells(linha, 6).Value = cargoNome
+    ws.Cells(linha, 7).Value = tipoOcorrencia
+    ws.Cells(linha, 8).Value = situacaoTxt
+    ws.Cells(linha, 9).Value = statusTxt
+    ws.Cells(linha, 10).Value = duracaoMinutos
+    ws.Cells(linha, 11).Value = destinoExtra
     If IsDate(tratativa) Then
-        ws.Cells(linha, 11).Value = CDate(tratativa)
+        ws.Cells(linha, 12).Value = CDate(tratativa)
     Else
-        ws.Cells(linha, 11).Value = ""
+        ws.Cells(linha, 12).Value = ""
     End If
 End Sub
 
