@@ -4,9 +4,9 @@ Option Explicit
 ' =====================================================================
 ' GerarCSVPonto
 ' ---------------------------------------------------------------------
-' Consolida a aba "Tratamento" (desta planilha) com o relatório
-' "Ausência de marcação" exportado do PontoNet (arquivo separado) numa
-' aba "CSV", no formato esperado pelo Painel de Ponto (Dashboard-Ponto).
+' Consolida a aba "Tratamento" (desta planilha) com os dados de
+' "Ausência de marcação" do PontoNet numa aba "CSV", no formato
+' esperado pelo Painel de Ponto (Dashboard-Ponto).
 '
 ' Este módulo NÃO foi testado dentro do Excel/VBA (o ambiente onde ele
 ' foi escrito não tem Excel instalado). Revise com atenção e rode
@@ -15,12 +15,17 @@ Option Explicit
 ' Como usar:
 '   1. Abra a planilha "Tratamento Ponto" (que contém a aba
 '      "Tratamento" e a aba "RE 08.09").
-'   2. Importe este módulo (Alt+F11 > Arquivo > Importar Arquivo).
-'   3. Rode a macro GerarAbaCSV. Ela vai pedir para você selecionar o
-'      arquivo "Ausência de marcação" mais recente (pode cancelar essa
-'      caixa se não tiver o arquivo à mão; a demora no PontoNet fica
-'      em branco nesse caso, o resto continua funcionando).
-'   4. Rode a macro ExportarCSVPorGestor. Ela pede uma pasta e cria
+'   2. Cole os dados de "Ausência de marcação" numa aba chamada
+'      "PontoNet", dentro dessa mesma planilha (mesmo cabeçalho do
+'      relatório original: Data falta, Matrícula, Nome, Situação
+'      atual, Justificativa, Avaliado em:, etc.).
+'   3. Importe este módulo (Alt+F11 > Arquivo > Importar Arquivo).
+'   4. Rode a macro GerarAbaCSV. Ela procura a aba "PontoNet"
+'      automaticamente; se não encontrar, pede para você selecionar
+'      um arquivo separado (pode cancelar essa caixa também; a demora
+'      no PontoNet fica em branco nesse caso, o resto continua
+'      funcionando).
+'   5. Rode a macro ExportarCSVPorGestor. Ela pede uma pasta e cria
 '      um arquivo .csv por gestor, mais um "dados_TODOS.csv" com tudo
 '      (esse último é o que vai para o supervisor geral).
 '
@@ -64,11 +69,18 @@ Public Sub GerarAbaCSV()
     Set wsTrat = wbTrat.Sheets("Tratamento")
     Set wsRE = wbTrat.Sheets("RE 08.09")
 
+    ' Primeiro procura uma aba "PontoNet" na própria planilha; só abre
+    ' um arquivo separado se essa aba não existir.
     Dim wbAus As Workbook
-    Set wbAus = AbrirArquivoAusencia()
-
     Dim wsAus As Worksheet
-    If Not wbAus Is Nothing Then Set wsAus = wbAus.Sheets(1)
+    On Error Resume Next
+    Set wsAus = wbTrat.Sheets("PontoNet")
+    On Error GoTo 0
+
+    If wsAus Is Nothing Then
+        Set wbAus = AbrirArquivoAusencia()
+        If Not wbAus Is Nothing Then Set wsAus = wbAus.Sheets(1)
+    End If
 
     Dim dictRE As Object, dictAus As Object, colIdx As Object
     Set dictRE = MontarDicionarioRE(wsRE)

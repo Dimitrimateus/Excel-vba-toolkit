@@ -165,7 +165,7 @@
     border:1px solid var(--c-line-strong); background:#FFFFFF; color:var(--c-muted);
     cursor:pointer; user-select:none;
   }
-  .chip.active{ background:#D8D9DA; border-color:#B7B8B9; color:#1A1A1A; }
+  .chip.active{ background:var(--c-orange); border-color:var(--c-orange); color:#fff; }
 
   /* ---------- Empty state ---------- */
   .empty-state{
@@ -470,8 +470,8 @@
             <select id="fGestor"><option value="">Todos os gestores</option></select>
           </div>
           <div class="filter-group">
-            <label for="fSetor">Setor</label>
-            <select id="fSetor"><option value="">Todos os setores</option></select>
+            <label for="fCargo">Cargo</label>
+            <select id="fCargo"><option value="">Todos os cargos</option></select>
           </div>
           <div class="filter-group">
             <label for="fColab">Colaborador</label>
@@ -1041,7 +1041,7 @@
 
   function populateFilterOptions(){
     var gestores = uniqueSorted(state.records, function(r){ return r.gestor; });
-    var setores = uniqueSorted(state.records, function(r){ return r.setor; });
+    var cargos = uniqueSorted(state.records, function(r){ return r.cargo; });
     var tipos = uniqueSorted(state.records, function(r){ return r.tipo; });
     var statuses = uniqueSorted(state.records, function(r){ return r.status; });
     var colaboradores = uniqueSorted(state.records, function(r){ return r.colaborador; });
@@ -1050,9 +1050,9 @@
     selGestor.innerHTML = '<option value="">Todos os gestores</option>' +
       gestores.map(function(g){ return '<option value="'+escapeHtml(g)+'">'+escapeHtml(g)+'</option>'; }).join("");
 
-    var selSetor = $("fSetor");
-    selSetor.innerHTML = '<option value="">Todos os setores</option>' +
-      setores.map(function(s){ return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>'; }).join("");
+    var selCargo = $("fCargo");
+    selCargo.innerHTML = '<option value="">Todos os cargos</option>' +
+      cargos.map(function(c){ return '<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>'; }).join("");
 
     var colabList = $("colabList");
     colabList.innerHTML = colaboradores.map(function(c){ return '<option value="'+escapeHtml(c)+'">'; }).join("");
@@ -1100,7 +1100,7 @@
 
   function getFilteredRecords(){
     var gestor = $("fGestor").value;
-    var setor = $("fSetor").value;
+    var cargo = $("fCargo").value;
     var colabQuery = stripAccents($("fColab").value.trim().toLowerCase());
     var tipoSet = activeChipValues($("fTipo"));
     var statusSet = activeChipValues($("fStatus"));
@@ -1111,7 +1111,7 @@
 
     return state.records.filter(function(r){
       if (gestor && r.gestor !== gestor) return false;
-      if (setor && r.setor !== setor) return false;
+      if (cargo && r.cargo !== cargo) return false;
       if (colabQuery && stripAccents(r.colaborador.toLowerCase()).indexOf(colabQuery) === -1) return false;
       if (!tipoAll && !tipoSet[r.tipo]) return false;
       if (!statusAll && !statusSet[r.status]) return false;
@@ -1381,12 +1381,12 @@
     $("fileStatus").textContent = "Nenhum arquivo carregado";
   });
 
-  ["fGestor","fSetor"].forEach(function(id){ $(id).addEventListener("change", applyFilters); });
+  ["fGestor","fCargo"].forEach(function(id){ $(id).addEventListener("change", applyFilters); });
   $("fColab").addEventListener("input", debounce(applyFilters, 200));
   $("fDataIni").addEventListener("change", applyFilters);
   $("fDataFim").addEventListener("change", applyFilters);
   $("clearFilters").addEventListener("click", function(){
-    $("fGestor").value = ""; $("fSetor").value = ""; $("fColab").value = "";
+    $("fGestor").value = ""; $("fCargo").value = ""; $("fColab").value = "";
     document.querySelectorAll(".chip").forEach(function(c){ c.classList.remove("active"); });
     if (state.records.length){
       var dates = state.records.map(function(r){ return r.data.getTime(); });
