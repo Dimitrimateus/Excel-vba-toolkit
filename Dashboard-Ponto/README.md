@@ -50,10 +50,12 @@ Se, na prática da empresa, "demora no PontoNet" significa outra coisa (por exem
 
 O painel usa a paleta oficial da Aurora Coop (vermelho, laranja, amarelo, preto, branco e dois tons de cinza), a partir das imagens da marca fornecidas diretamente pelo RH. Os valores hexadecimais usados são uma leitura aproximada dessas imagens (vermelho `#E31E24`, laranja `#F7931E`, amarelo `#FFC72C`, preto `#1A1A1A`, cinza escuro `#58595B`, cinza claro `#A7A9AC`). Se você tiver o guia de marca com os códigos exatos, basta ajustar os valores no topo do `<style>`, dentro de `:root { ... }` (variáveis `--c-orange`, `--c-gold`, `--c-terracotta`, etc.).
 
-No cabeçalho, o ícone (três triângulos ascendentes nas cores da marca) é uma recriação em SVG inspirada no símbolo real, e não uma cópia vetorial exata: como as imagens do logotipo foram enviadas coladas na conversa (sem um arquivo de imagem por trás), não foi possível extrair o vetor original com precisão de pixel. Se você anexar os arquivos do logotipo (o mesmo jeito que anexou as planilhas, como arquivo e não colado na mensagem), dá pra embutir a arte oficial em vez desta recriação. Para trocar depois:
+O cabeçalho usa o **logotipo oficial de verdade**: a versão negativa (branca, para fundo escuro) que você enviou está embutida direto no `<header>` de `index.html`, como `data:` URI (imagem `<img class="brand-mark">`), então o arquivo continua funcionando sem internet e sem depender de nenhum outro arquivo solto.
 
-1. Abra `index.html` num editor de texto e procure pelo bloco `<svg class="brand-mark">` no `<header>`. Substitua o conteúdo por um `<img>` apontando para o logotipo oficial (como um `data:` URI embutido, para manter o arquivo funcionando sem internet) ou pelo SVG oficial.
-2. O texto "AURORA COOP" ao lado do ícone é HTML/CSS (classe `.brand-name`), não uma imagem. Se o logotipo oficial já incluir a palavra "AURORA COOP" desenhada, você pode remover esse texto para não duplicar.
+As três variantes que você mandou (preta, negativa/branca e colorida) também estão salvas em `assets/`, caso precise delas soltas para outra coisa (um e-mail, um documento, etc.). Se quiser trocar a versão usada no cabeçalho (por exemplo, para a colorida ou a preta, caso o fundo mude para claro no futuro):
+
+1. Gere o `data:image/png;base64,...` (ou `image/jpeg;base64,...`) do arquivo em `assets/` que você quiser usar (qualquer conversor online, ou `base64 arquivo.png` no terminal).
+2. Abra `index.html`, procure `<img class="brand-mark"` dentro do `<header>` e troque o valor do `src` pela nova string.
 
 ## Testando antes de enviar
 
