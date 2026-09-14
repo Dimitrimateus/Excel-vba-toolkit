@@ -41,6 +41,7 @@ Colunas esperadas (a ordem das colunas não importa, o que importa é o nome do 
 | `duracao_minutos` | Não | Duração em minutos, **com sinal**: negativo para falta/atraso, positivo para hora extra. | `-30` (30 min de atraso), `120` (2h de hora extra) |
 | `destino_horas_extra` | Não | Só faz sentido quando `duracao_minutos` é positivo. | `Banco de Horas` ou `Pagamento` |
 | `data_tratativa_pontonet` | Não | Data (e hora, se tiver) em que a ocorrência foi tratada/aprovada/regularizada no PontoNet. Usada para calcular a demora. | `25/08/2026 14:30` |
+| `horas_excedentes` | Não | Marca a ocorrência como "hora excedente" (aparece na lista "Relação de horas excedentes"). Qualquer valor preenchido conta como marcado; vazio = não marcado. | `Sim` |
 
 `* `Se a coluna não existir ou vier vazia numa linha, o painel usa "Sem gestor" / "Sem setor" / "Sem cargo" / "Não informado" no lugar, mas os gráficos correspondentes perdem o sentido. Vale a pena preencher.
 
@@ -74,3 +75,5 @@ Abra `index.html` em qualquer navegador (Chrome, Edge, Firefox) e carregue o `mo
 ## Gerando o CSV a partir do PontoNet (macro VBA)
 
 `GerarCSV.bas`, nesta mesma pasta, é uma primeira versão do macro que consolida a aba "Tratamento" (da sua planilha "Tratamento Ponto") com os dados de "Ausência de marcação" do PontoNet numa aba "CSV" pronta para exportar. A macro procura automaticamente uma aba chamada **"PontoNet"** dentro da própria planilha "Tratamento Ponto" (é lá que você deve colar o relatório de ausência de marcação); se essa aba não existir, ela pede para você selecionar um arquivo separado. Esse arquivo **não foi testado dentro do Excel** (não há Excel disponível no ambiente onde ele foi escrito), então revise e rode primeiro numa cópia da planilha. O cabeçalho do próprio arquivo `.bas` explica o passo a passo de instalação e as regras de negócio que ainda precisam da sua confirmação (procure por "REGRA:").
+
+A macro também usa a aba **"Cartão ponto até dia"** (já existe na mesma planilha) para pegar a quantidade de horas: a coluna "BH" vira a hora de falta coberta por banco de horas, e a soma de "50%"+"60%"+"100%"+"120%" vira hora extra. As colunas "Extras"/"Faltas" da aba Tratamento continuam decidindo só SE aquele dia entra como ocorrência de extra/falta (é a única fonte usada para "extra e falta no mesmo dia"); a coluna "Pontonet" da Tratamento é ignorada de propósito.

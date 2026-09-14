@@ -39,13 +39,34 @@ Option Explicit
 '   - A coluna "Cargo" já existe na aba Tratamento (adicionada pelo
 '     RH) e é usada direto; só cai no lookup pela "RE 08.09" quando
 '     vier vazia.
+'   - A coluna "Pontonet" da aba Tratamento é ignorada de propósito
+'     (não representa quantidade de horas, é só um status auxiliar).
+'   - As colunas "Extras"/"Faltas" da aba Tratamento decidem QUAIS
+'     dias entram como ocorrência de hora extra / falta (e são a
+'     única fonte para "extra e falta no mesmo dia"). Mas a
+'     QUANTIDADE de horas gravada no CSV vem da aba "Cartão ponto até
+'     dia": coluna "BH" para as horas de falta cobertas por banco de
+'     horas, e a soma de "50%"+"60%"+"100%"+"120%" para hora extra.
+'     Se não achar a linha correspondente no Cartão Ponto, cai de
+'     volta para o valor da aba Tratamento (para não perder dado).
+'   - "Horas Excedentes" (aba Tratamento, coluna "SIM"/vazio) vira uma
+'     lista separada no painel ("Relação de horas excedentes"), com
+'     as ocorrências marcadas "SIM".
 '
 ' Pontos que ainda dependem de uma regra de negócio que eu não
 ' consegui confirmar só olhando os dados (procure "REGRA:" abaixo):
 '   - Como decidir se uma hora extra foi para BANCO DE HORAS ou para
-'     PAGAMENTO (a aba "Tratamento" não tem essa informação separada).
+'     PAGAMENTO (a aba "Tratamento" não tem essa informação separada;
+'     a coluna "BH" do Cartão Ponto é usada para FALTA coberta por
+'     banco de horas, não para destino da hora extra).
 '   - Como mapear os status reais (Tratado/Tratando/Tratar/vazio) para
 '     o vocabulário Pendente/Aprovado/Reprovado/Regularizado do painel.
+'   - Na aba Cartão Ponto, a coluna "BH" aparece tanto em dias de
+'     "Falta (Banco Horas)" (valor alto, o dia inteiro) quanto em dias
+'     "Trabalhando" (valor baixo, minutos). Este código trata qualquer
+'     valor de "BH" como hora de falta coberta pelo banco, do jeito
+'     que foi pedido. Se, na prática, o "BH" de um dia "Trabalhando"
+'     for crédito (e não falta), avise para eu ajustar.
 ' =====================================================================
 
 ' ---- Regras configuráveis -------------------------------------------
@@ -65,9 +86,10 @@ Public Sub GerarAbaCSV()
     Dim wbTrat As Workbook
     Set wbTrat = ThisWorkbook
 
-    Dim wsTrat As Worksheet, wsRE As Worksheet
+    Dim wsTrat As Worksheet, wsRE As Worksheet, wsCartao As Worksheet
     Set wsTrat = wbTrat.Sheets("Tratamento")
     Set wsRE = wbTrat.Sheets("RE 08.09")
+    Set wsCartao = EncontrarAba(wbTrat, "Cartão ponto")
 
     ' Primeiro procura uma aba "PontoNet" na própria planilha; só abre
     ' um arquivo separado se essa aba não existir.
@@ -82,9 +104,10 @@ Public Sub GerarAbaCSV()
         If Not wbAus Is Nothing Then Set wsAus = wbAus.Sheets(1)
     End If
 
-    Dim dictRE As Object, dictAus As Object, colIdx As Object
+    Dim dictRE As Object, dictAus As Object, dictCartao As Object, colIdx As Object
     Set dictRE = MontarDicionarioRE(wsRE)
     Set dictAus = MontarDicionarioAusencia(wsAus)
+    Set dictCartao = MontarDicionarioCartao(wsCartao)
     Set colIdx = MapearColunas(wsTrat)
 
     Dim wsCSV As Worksheet
@@ -100,6 +123,7 @@ Public Sub GerarAbaCSV()
     For r = 2 To ultimaLinha
 
         Dim matricula As String, nome As String, gestor As String, situacao As String, statusTxt As String, checkTxt As String
+        Dim horasExcedentesTxt As String
         Dim dataOcorrencia As Variant
 
         matricula = Trim$(CStr(wsTrat.Cells(r, colIdx("Matricula")).Value))
@@ -110,15 +134,36 @@ Public Sub GerarAbaCSV()
         dataOcorrencia = wsTrat.Cells(r, colIdx("Data")).Value
         checkTxt = ""
         If colIdx.Exists("Check") Then checkTxt = Trim$(CStr(wsTrat.Cells(r, colIdx("Check")).Value))
+        horasExcedentesTxt = ""
+        If colIdx.Exists("Horas Excedentes") Then
+            If Trim$(CStr(wsTrat.Cells(r, colIdx("Horas Excedentes")).Value)) <> "" Then horasExcedentesTxt = "Sim"
+        End If
 
         If nome = "" Or Not IsDate(dataOcorrencia) Then GoTo ProximaLinha
         If UCase$(checkTxt) = VALOR_CHECK_IGNORAR Then GoTo ProximaLinha
         If Not INCLUIR_SEM_ALTERACAO And (situacao = "" Or situacao = "Sem alteração") Then GoTo ProximaLinha
 
-        Dim minExtra As Double, minExtra100 As Double, minFalta As Double
-        minExtra = NzNum(wsTrat.Cells(r, colIdx("Extras")).Value) * 24 * 60
-        minExtra100 = NzNum(wsTrat.Cells(r, colIdx("Extra 100%")).Value) * 24 * 60
-        minFalta = NzNum(wsTrat.Cells(r, colIdx("Faltas")).Value) * 24 * 60
+        ' As colunas Extras/Faltas da aba Tratamento só decidem SE o dia
+        ' entra como ocorrência de extra/falta (pedido do RH). A
+        ' quantidade de horas gravada vem do Cartão Ponto (ver abaixo).
+        Dim minExtraTrat As Double, minExtra100Trat As Double, minFaltaTrat As Double
+        minExtraTrat = NzNum(wsTrat.Cells(r, colIdx("Extras")).Value) * 24 * 60
+        minExtra100Trat = NzNum(wsTrat.Cells(r, colIdx("Extra 100%")).Value) * 24 * 60
+        minFaltaTrat = NzNum(wsTrat.Cells(r, colIdx("Faltas")).Value) * 24 * 60
+        Dim temExtraTrat As Boolean, temFaltaTrat As Boolean
+        temExtraTrat = (minExtraTrat + minExtra100Trat) > 0
+        temFaltaTrat = minFaltaTrat > 0
+
+        ' Quantidade de horas "oficial": Cartão Ponto (BH = falta coberta
+        ' por banco de horas; 50%+60%+100%+120% = hora extra). Cai de
+        ' volta para o valor da aba Tratamento se não achar a linha
+        ' correspondente no Cartão Ponto (matrícula + data).
+        Dim minFaltaBHCartao As Double, minExtraCartao As Double
+        ObterValoresCartao dictCartao, matricula, dataOcorrencia, minFaltaBHCartao, minExtraCartao
+
+        Dim minExtra As Double, minFalta As Double
+        minExtra = IIf(minExtraCartao > 0, minExtraCartao, minExtraTrat + minExtra100Trat)
+        minFalta = IIf(minFaltaBHCartao > 0, minFaltaBHCartao, minFaltaTrat)
 
         Dim setorNome As String, cargoNome As String, cargoTratamento As String
         ObterSetorCargo dictRE, matricula, setorNome, cargoNome
@@ -136,21 +181,24 @@ Public Sub GerarAbaCSV()
         situacaoFinal = situacao
         If situacaoTexto <> "" Then situacaoFinal = situacaoTexto
 
-        ' Linha de HORA EXTRA (soma Extras + Extra 100%), se houver.
-        ' Não recebe a demora do PontoNet: essa demora é sobre a
-        ' justificativa de ausência de marcação, não sobre a extra.
-        If (minExtra + minExtra100) > 0 Then
+        ' Linha de HORA EXTRA, se a aba Tratamento apontar extra nesse dia
+        ' (gate). O valor em minutos vem do Cartão Ponto (ou, na falta
+        ' dele, da própria Tratamento). Não recebe a demora do PontoNet:
+        ' essa demora é sobre a justificativa de ausência de marcação,
+        ' não sobre a extra.
+        If temExtraTrat Then
             EscreverLinhaCSV wsCSV, linhaSaida, dataOcorrencia, nome, matricula, gestor, setorNome, cargoNome, _
-                "Hora Extra", situacaoFinal, statusFinal, Round(minExtra + minExtra100, 0), _
-                DESTINO_HORA_EXTRA_PADRAO, Empty
+                "Hora Extra", situacaoFinal, statusFinal, Round(minExtra, 0), _
+                DESTINO_HORA_EXTRA_PADRAO, Empty, horasExcedentesTxt
             linhaSaida = linhaSaida + 1
         End If
 
-        ' Linha de FALTA/ATRASO, se houver.
-        If minFalta > 0 Then
+        ' Linha de FALTA/ATRASO, se a aba Tratamento apontar falta nesse
+        ' dia (gate). Valor em minutos: Cartão Ponto (BH) ou Tratamento.
+        If temFaltaTrat Then
             EscreverLinhaCSV wsCSV, linhaSaida, dataOcorrencia, nome, matricula, gestor, setorNome, cargoNome, _
                 situacao, situacaoFinal, statusFinal, -Round(minFalta, 0), "", _
-                IIf(temTratativa, avaliadoEm, Empty)
+                IIf(temTratativa, avaliadoEm, Empty), horasExcedentesTxt
             linhaSaida = linhaSaida + 1
         End If
 
@@ -158,10 +206,10 @@ Public Sub GerarAbaCSV()
         ' Problema horário, Sem marcação já corrigida) - ainda entra
         ' no CSV com duracao_minutos = 0, só para contar nos gráficos
         ' de tipo/gestor/cargo/setor/data.
-        If (minExtra + minExtra100) = 0 And minFalta = 0 Then
+        If Not temExtraTrat And Not temFaltaTrat Then
             EscreverLinhaCSV wsCSV, linhaSaida, dataOcorrencia, nome, matricula, gestor, setorNome, cargoNome, _
                 situacao, situacaoFinal, statusFinal, 0, "", _
-                IIf(temTratativa, avaliadoEm, Empty)
+                IIf(temTratativa, avaliadoEm, Empty), horasExcedentesTxt
             linhaSaida = linhaSaida + 1
         End If
 
@@ -235,6 +283,20 @@ Private Function AbrirArquivoAusencia() As Workbook
     End If
 End Function
 
+' Acha uma aba cujo nome comece com "prefixo" (ignora maiúsculas e
+' espaços extras no fim do nome, tipo "Cartão ponto até dia "),
+' Returns Nothing se não encontrar.
+Private Function EncontrarAba(wb As Workbook, prefixo As String) As Worksheet
+    Dim ws As Worksheet
+    For Each ws In wb.Sheets
+        If LCase$(Left$(Trim$(ws.Name), Len(prefixo))) = LCase$(prefixo) Then
+            Set EncontrarAba = ws
+            Exit Function
+        End If
+    Next ws
+    Set EncontrarAba = Nothing
+End Function
+
 Private Function ColunaPorCabecalho(ws As Worksheet, cabecalho As String) As Long
     Dim ultimaColuna As Long, c As Long
     ultimaColuna = ws.Cells(1, ws.Columns.Count).End(xlToLeft).Column
@@ -295,6 +357,80 @@ Private Sub ObterSetorCargo(dictRE As Object, matricula As String, ByRef setorNo
     Else
         setorNome = "Sem setor"
         cargoNome = ""
+    End If
+End Sub
+
+' Chave: Matricula & "|" & AAAA-MM-DD. Guarda, em minutos, a coluna
+' "BH" (falta coberta por banco de horas) e a soma de
+' "50%"+"60%"+"100%"+"120%" (hora extra). Se a aba não existir (não
+' foi encontrada na planilha), devolve um dicionário vazio e o
+' chamador cai de volta para os valores da aba Tratamento.
+Private Function MontarDicionarioCartao(ws As Worksheet) As Object
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+    If ws Is Nothing Then
+        Set MontarDicionarioCartao = dict
+        Exit Function
+    End If
+
+    Dim colMat As Long, colData As Long, colBH As Long
+    Dim col50 As Long, col60 As Long, col100 As Long, col120 As Long
+    colMat = ColunaPorCabecalho(ws, "Matricula")
+    colData = ColunaPorCabecalho(ws, "DT")
+    colBH = ColunaPorCabecalho(ws, "BH")
+    col50 = ColunaPorCabecalho(ws, "50%")
+    col60 = ColunaPorCabecalho(ws, "60%")
+    col100 = ColunaPorCabecalho(ws, "100%")
+    col120 = ColunaPorCabecalho(ws, "120%")
+    If colMat = 0 Or colData = 0 Then
+        Set MontarDicionarioCartao = dict
+        Exit Function
+    End If
+
+    Dim ultimaLinha As Long, r As Long
+    Dim mat As String, dt As Variant, chave As String
+    Dim bhMin As Double, extraMin As Double
+
+    ultimaLinha = ws.Cells(ws.Rows.Count, colMat).End(xlUp).Row
+    For r = 2 To ultimaLinha
+        mat = Trim$(CStr(ws.Cells(r, colMat).Value))
+        dt = ws.Cells(r, colData).Value
+        If mat <> "" And IsDate(dt) Then
+            chave = mat & "|" & Format(CDate(dt), "yyyy-mm-dd")
+            bhMin = IIf(colBH > 0, NzNum(ws.Cells(r, colBH).Value), 0) * 24 * 60
+            extraMin = 0
+            If col50 > 0 Then extraMin = extraMin + NzNum(ws.Cells(r, col50).Value) * 24 * 60
+            If col60 > 0 Then extraMin = extraMin + NzNum(ws.Cells(r, col60).Value) * 24 * 60
+            If col100 > 0 Then extraMin = extraMin + NzNum(ws.Cells(r, col100).Value) * 24 * 60
+            If col120 > 0 Then extraMin = extraMin + NzNum(ws.Cells(r, col120).Value) * 24 * 60
+            ' se a matrícula tiver mais de uma linha no mesmo dia, soma
+            If dict.Exists(chave) Then
+                Dim antigo As Variant
+                antigo = dict(chave)
+                dict(chave) = Array(antigo(0) + bhMin, antigo(1) + extraMin)
+            Else
+                dict(chave) = Array(bhMin, extraMin)
+            End If
+        End If
+    Next r
+    Set MontarDicionarioCartao = dict
+End Function
+
+Private Sub ObterValoresCartao(dictCartao As Object, matricula As String, dataOcorrencia As Variant, _
+    ByRef minFaltaBH As Double, ByRef minExtra As Double)
+
+    minFaltaBH = 0
+    minExtra = 0
+    If dictCartao Is Nothing Then Exit Sub
+    If Not IsDate(dataOcorrencia) Then Exit Sub
+
+    Dim chave As String
+    chave = matricula & "|" & Format(CDate(dataOcorrencia), "yyyy-mm-dd")
+    If dictCartao.Exists(chave) Then
+        Dim arr As Variant
+        arr = dictCartao(chave)
+        minFaltaBH = arr(0)
+        minExtra = arr(1)
     End If
 End Sub
 
@@ -404,7 +540,8 @@ Private Function PrepararAbaCSV(wb As Workbook) As Worksheet
 
     Dim cabecalhos As Variant, i As Long
     cabecalhos = Array("data", "colaborador", "matricula", "gestor", "setor", "cargo", "tipo_ocorrencia", _
-                        "situacao", "status", "duracao_minutos", "destino_horas_extra", "data_tratativa_pontonet")
+                        "situacao", "status", "duracao_minutos", "destino_horas_extra", "data_tratativa_pontonet", _
+                        "horas_excedentes")
     For i = LBound(cabecalhos) To UBound(cabecalhos)
         ws.Cells(1, i + 1).Value = cabecalhos(i)
     Next i
@@ -416,7 +553,8 @@ End Function
 ' Ordem das colunas tem que casar com PrepararAbaCSV.
 Private Sub EscreverLinhaCSV(ws As Worksheet, linha As Long, dataOcorrencia As Variant, nome As String, _
     matricula As String, gestor As String, setorNome As String, cargoNome As String, tipoOcorrencia As String, _
-    situacaoTxt As String, statusTxt As String, duracaoMinutos As Double, destinoExtra As String, tratativa As Variant)
+    situacaoTxt As String, statusTxt As String, duracaoMinutos As Double, destinoExtra As String, tratativa As Variant, _
+    Optional horasExcedentes As String = "")
 
     ws.Cells(linha, 1).Value = CDate(dataOcorrencia)
     ws.Cells(linha, 2).Value = nome
@@ -434,6 +572,7 @@ Private Sub EscreverLinhaCSV(ws As Worksheet, linha As Long, dataOcorrencia As V
     Else
         ws.Cells(linha, 12).Value = ""
     End If
+    ws.Cells(linha, 13).Value = horasExcedentes
 End Sub
 
 Private Function EscolherPasta() As String

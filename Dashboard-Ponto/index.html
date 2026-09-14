@@ -240,6 +240,7 @@
   .chart-label{ font-size:11px; fill:var(--c-ink); }
   .axis-label{ font-size:10.5px; fill:var(--c-muted); }
   .chart-value{ font-size:11px; fill:var(--c-navy-dark); font-weight:700; }
+  .chart-value-top{ font-size:9.5px; fill:var(--c-navy-dark); font-weight:700; }
   .chart-track{ fill:var(--c-paper-dim); }
   .chart-bar{ cursor:default; }
   .grid-line{ stroke:var(--c-line); stroke-width:1; }
@@ -261,7 +262,7 @@
   .donut-wrap .legend{ flex:1 1 160px; margin-top:0; }
 
   /* ---------- Tables ---------- */
-  table.data-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  table.data-table{ width:100%; table-layout:fixed; border-collapse:collapse; font-size:12.5px; }
   table.data-table th, table.data-table td{
     text-align:left; padding:7px 9px; border-bottom:1px solid var(--c-line);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px;
@@ -525,6 +526,15 @@
           </div>
         </section>
 
+        <h3 class="section-title">Horas excedentes</h3>
+        <section class="grid">
+          <div class="card wide">
+            <div class="card-title">Relação de horas excedentes</div>
+            <div class="card-hint">Ocorrências marcadas como "Horas Excedentes" na aba Tratamento</div>
+            <div class="card-body" id="tableHorasExcedentes"></div>
+          </div>
+        </section>
+
         <h3 class="section-title">Demora de tratativa no PontoNet</h3>
         <section class="grid">
           <div class="card wide">
@@ -547,6 +557,10 @@
           </div>
           <div class="table-scroll">
             <table class="data-table" id="historyTable">
+              <colgroup>
+                <col style="width:11%"><col style="width:19%"><col style="width:16%">
+                <col style="width:13%"><col style="width:13%"><col style="width:18%"><col style="width:10%">
+              </colgroup>
               <thead><tr>
                 <th data-key="data">Data</th>
                 <th data-key="colaborador">Colaborador</th>
@@ -678,7 +692,8 @@
     status:    ["status","status_ocorrencia","situacao_status"],
     duracao:   ["duracao_minutos","duracao","minutos","qtd_minutos"],
     destinoExtra: ["destino_horas_extra","destino_extra","tipo_hora_extra","destino"],
-    tratativa: ["data_tratativa_pontonet","tratativa_pontonet","data_tratativa","data_regularizacao","data_aprovacao"]
+    tratativa: ["data_tratativa_pontonet","tratativa_pontonet","data_tratativa","data_regularizacao","data_aprovacao"],
+    horasExcedentes: ["horas_excedentes","horas_excedente","horaexcedente","excedente"]
   };
 
   var state = {
@@ -847,7 +862,8 @@
         status: idx.status != null ? (r[idx.status]||"").trim() || "Pendente" : "Pendente",
         duracao: idx.duracao != null ? parseNumber(r[idx.duracao]) : 0,
         destinoExtra: idx.destinoExtra != null ? (r[idx.destinoExtra]||"").trim() : "",
-        tratativa: tratativaRaw ? parseDate(tratativaRaw) : null
+        tratativa: tratativaRaw ? parseDate(tratativaRaw) : null,
+        horasExcedentes: idx.horasExcedentes != null && /^(sim|s|true|1|x)$/i.test((r[idx.horasExcedentes]||"").trim())
       };
       out.push(rec);
     }
@@ -965,7 +981,7 @@
     container.innerHTML = "";
     if (!items.length){ container.appendChild(emptyMsg()); return; }
     var max = niceMax(Math.max.apply(null, items.map(function(i){ return i.value; })));
-    var W = containerWidth(container, 520), H = 230, padL = 34, padR = 8, padT = 8, padB = 26;
+    var W = containerWidth(container, 520), H = 230, padL = 34, padR = 8, padT = 20, padB = 26;
     var plotW = W-padL-padR, plotH = H-padT-padB;
     var bw = plotW/items.length;
     var svg = svgEl("svg", { viewBox:"0 0 "+W+" "+H, class:"chart-svg" });
@@ -982,6 +998,9 @@
       var h = max ? (it.value/max)*plotH : 0;
       var y = padT + plotH - h;
       svg.appendChild(svgEl("rect", { x:x, y:y, width:w, height:Math.max(h,0), fill: it.color || "var(--c-navy)", rx:3, class:"chart-bar", "data-tooltip": it.label+": "+formatNum(it.value) }));
+      var vt = svgEl("text", { x:x+w/2, y:y-6, class:"chart-value-top", "text-anchor":"middle" });
+      vt.textContent = formatNum(it.value);
+      svg.appendChild(vt);
       var lbl = svgEl("text", { x:x+w/2, y:H-padB+16, class:"axis-label", "text-anchor":"middle" });
       lbl.textContent = it.label;
       svg.appendChild(lbl);
@@ -1043,7 +1062,7 @@
     container.innerHTML = "";
     if (!points.length){ container.appendChild(emptyMsg()); return; }
     var max = niceMax(Math.max.apply(null, points.map(function(p){ return p.value; }).concat([1])));
-    var W=containerWidth(container, 1040),H=230,padL=36,padR=14,padT=14,padB=28;
+    var W=containerWidth(container, 1040),H=230,padL=36,padR=14,padT=24,padB=28;
     var plotW=W-padL-padR, plotH=H-padT-padB;
     var stepX = points.length>1 ? plotW/(points.length-1) : 0;
     var svg = svgEl("svg", { viewBox:"0 0 "+W+" "+H, class:"chart-svg" });
@@ -1060,12 +1079,26 @@
     svg.appendChild(svgEl("path", { d:areaD, class:"chart-area" }));
     var lineD = "M"+coords.map(function(c){ return c.join(","); }).join(" L ");
     svg.appendChild(svgEl("path", { d:lineD, class:"chart-line", fill:"none" }));
+    // O número fica sempre visível em cima do ponto (sem precisar de
+    // hover). Quando há muitos dias e não caberia todo mundo sem
+    // embolar um número no outro, mostra em cima de um a cada N dias
+    // (o mesmo espaçamento usado nas datas do eixo X) — o valor exato
+    // de qualquer dia sempre aparece passando o mouse.
+    var labelEveryValor = Math.max(1, Math.round(16/Math.max(stepX,1)));
     coords.forEach(function(c,i){
       svg.appendChild(svgEl("circle", { cx:c[0], cy:c[1], r:7, class:"chart-hit", "data-tooltip": points[i].label+": "+formatNum(points[i].value) }));
+      if (i % labelEveryValor === 0 || i === coords.length-1){
+        var vt = svgEl("text", { x:c[0], y:c[1]-9, class:"chart-value-top", "text-anchor":"middle" });
+        vt.textContent = formatNum(points[i].value);
+        svg.appendChild(vt);
+      }
     });
-    var labelEvery = Math.max(1, Math.ceil(points.length/10));
+    // As datas do eixo X precisam de bem mais espaço que um numerozinho
+    // de valor, então usam um espaçamento mais folgado, senão viram
+    // uma sopa de letrinhas ilegível quando há muitos dias.
+    var labelEveryData = Math.max(1, Math.ceil(points.length/10));
     points.forEach(function(p,i){
-      if (i % labelEvery === 0 || i === points.length-1){
+      if (i % labelEveryData === 0 || i === points.length-1){
         var t = svgEl("text", { x:coords[i][0], y:H-padB+16, class:"axis-label", "text-anchor":"middle" });
         t.textContent = p.label;
         svg.appendChild(t);
@@ -1165,6 +1198,10 @@
     });
     var top = Object.values(perColab).sort(function(x,y){ return (y.a+y.b)-(x.a+x.b); }).slice(0,n);
     return { totals:totals, top:top };
+  }
+  function relacaoHorasExcedentes(records){
+    return records.filter(function(r){ return r.horasExcedentes; })
+      .slice().sort(function(a,b){ return b.data.getTime()-a.data.getTime(); });
   }
   function demoraStats(records, keyFn){
     var groups = {};
@@ -1355,7 +1392,9 @@
   function renderTableSimple(container, columns, rows, opts){
     opts = opts || {};
     if (!rows.length){ container.innerHTML=""; container.appendChild(emptyMsg()); return; }
-    var html = '<div class="table-scroll' + (opts.short ? '' : '') + '"><table class="data-table"><thead><tr>';
+    var html = '<div class="table-scroll"><table class="data-table"><colgroup>';
+    columns.forEach(function(c){ html += c.width ? '<col style="width:'+c.width+'">' : '<col>'; });
+    html += '</colgroup><thead><tr>';
     columns.forEach(function(c){ html += "<th>"+escapeHtml(c.label)+"</th>"; });
     html += "</tr></thead><tbody>";
     rows.forEach(function(row){
@@ -1383,30 +1422,38 @@
     renderTableSimple($("tableExtraFalta"),
       [{label:"Colaborador", render:function(r){return escapeHtml(r.colaborador);}},
        {label:"Gestor", render:function(r){return escapeHtml(r.gestor);}},
-       {label:"Dias", render:function(r){return '<strong>'+r.dias+'</strong>';}}],
+       {label:"Dias", width:"56px", render:function(r){return '<strong>'+r.dias+'</strong>';}}],
       extraEFaltaMesmoDia(records, 10));
 
     renderTableSimple($("tableCurtas"),
       [{label:"Colaborador", render:function(r){return escapeHtml(r.colaborador);}},
-       {label:"Ocorrências", render:function(r){return r.qtd;}},
-       {label:"Minutos", render:function(r){return formatNum(r.minutos);}}],
+       {label:"Ocorrências", width:"90px", render:function(r){return r.qtd;}},
+       {label:"Minutos", width:"76px", render:function(r){return formatNum(r.minutos);}}],
       curtaDuracao(records, 10));
 
     var banco = bancoDeHorasEExtra(records, 10);
     renderStackedH($("chartBancoHoras"), banco.top);
 
+    renderTableSimple($("tableHorasExcedentes"),
+      [{label:"Data", width:"90px", render:function(r){return formatDateBR(r.data);}},
+       {label:"Colaborador", render:function(r){return escapeHtml(r.colaborador);}},
+       {label:"Gestor", render:function(r){return escapeHtml(r.gestor);}},
+       {label:"Tipo", width:"140px", render:function(r){return escapeHtml(r.tipo);}},
+       {label:"Situação", render:function(r){return escapeHtml(r.situacao);}}],
+      relacaoHorasExcedentes(records));
+
     renderTableSimple($("tableDemoraGestor"),
       [{label:"Gestor", render:function(r){return escapeHtml(r.label);}},
-       {label:"Ocorrências tratadas", render:function(r){return formatNum(r.qtd);}},
-       {label:"Demora média", render:function(r){return formatDelay(r.media);}},
-       {label:"Maior demora", render:function(r){return formatDelay(r.maior);}}],
+       {label:"Ocorrências tratadas", width:"140px", render:function(r){return formatNum(r.qtd);}},
+       {label:"Demora média", width:"110px", render:function(r){return formatDelay(r.media);}},
+       {label:"Maior demora", width:"110px", render:function(r){return formatDelay(r.maior);}}],
       demoraStats(records, function(r){ return r.gestor; }));
 
     renderTableSimple($("tableDemoraColaborador"),
       [{label:"Colaborador", render:function(r){return escapeHtml(r.label);}},
-       {label:"Ocorrências tratadas", render:function(r){return formatNum(r.qtd);}},
-       {label:"Demora média", render:function(r){return formatDelay(r.media);}},
-       {label:"Maior demora", render:function(r){return formatDelay(r.maior);}}],
+       {label:"Ocorrências tratadas", width:"140px", render:function(r){return formatNum(r.qtd);}},
+       {label:"Demora média", width:"110px", render:function(r){return formatDelay(r.media);}},
+       {label:"Maior demora", width:"110px", render:function(r){return formatDelay(r.maior);}}],
       demoraStats(records, function(r){ return r.colaborador; }));
 
     renderHistory(records);
