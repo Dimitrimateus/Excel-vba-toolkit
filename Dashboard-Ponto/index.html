@@ -205,7 +205,7 @@
   [hidden]{ display:none !important; }
 
   /* ---------- KPIs ---------- */
-  .kpis{ display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:12px; margin-bottom:22px; }
+  .kpis{ display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:12px; margin-bottom:22px; }
   .kpi-tile{
     background:var(--c-card); border:1px solid var(--c-line); border-radius:var(--radius-tile);
     padding:14px 14px 12px; border-top:3px solid var(--c-orange);
@@ -458,11 +458,6 @@
           <div class="kpi-label">Total de horas falta/atraso</div>
           <div class="kpi-value" id="kpiFalta">0h</div>
           <div class="kpi-sub">Soma de todas as ausências</div>
-        </div>
-        <div class="kpi-tile k-gold">
-          <div class="kpi-label">Banco de horas gerado</div>
-          <div class="kpi-value" id="kpiBanco">0h</div>
-          <div class="kpi-sub">Hora extra destinada ao banco</div>
         </div>
         <div class="kpi-tile k-slate">
           <div class="kpi-label">Demora média no PontoNet</div>
@@ -1354,11 +1349,10 @@
     $("kpiOcorrencias").textContent = formatNum(records.length);
     $("kpiOcorrenciasSub").textContent = records.length ? (formatDateSpan(records)) : "";
 
-    var extraTotal = 0, faltaTotal = 0, bancoTotal = 0, extra100Total = 0;
+    var extraTotal = 0, faltaTotal = 0, extra100Total = 0;
     records.forEach(function(r){
       if (r.duracao > 0){
         extraTotal += r.duracao;
-        if (/banco/i.test(r.destinoExtra||"")) bancoTotal += r.duracao;
         if (/100%/.test(r.tipo||"")) extra100Total += r.duracao;
       } else if (r.duracao < 0){
         faltaTotal += Math.abs(r.duracao);
@@ -1369,7 +1363,6 @@
       ? "Banco de horas + pagamento · " + formatHoras(extra100Total) + " a 100%"
       : "Banco de horas + pagamento";
     $("kpiFalta").textContent = formatHoras(faltaTotal);
-    $("kpiBanco").textContent = formatHoras(bancoTotal);
 
     var demoras = [];
     records.forEach(function(r){
