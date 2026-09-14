@@ -67,8 +67,11 @@ data,colaborador,matricula,gestor,setor,cargo,tipo_ocorrencia,situacao,status,du
 04/07/2026,Ana Paula Ribeiro,5827,Marina Souza,Producao,Encarregado de Producao,Atraso,Chegou apos o horario tolerado,Reprovado,-45,,04/07/2026 20:32,
 05/07/2026,Kleber Santana,5982,Carlos Bittencourt,Logistica,Auxiliar de Logistica,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Aprovado,-10,,05/07/2026 10:27,
 05/07/2026,Ana Paula Ribeiro,5827,Marina Souza,Producao,Encarregado de Producao,Falta,Falta por atestado,Aprovado,-480,,05/07/2026 14:30,
+06/07/2026,Igor Martins,5107,Carlos Bittencourt,Logistica,Auxiliar de Logistica,Hora Extra 100%,Trabalho em feriado,Aprovado,300,,,
+06/07/2026,Juliana Rocha,5936,Carlos Bittencourt,Logistica,Operador de Empilhadeira,Hora Extra 100%,Trabalho em feriado,Aprovado,300,,,
 06/07/2026,Larissa Moura,6881,Fernanda Lima,Qualidade,Analista de Qualidade,Saida Antecipada,Saida antecipada autorizada,Pendente,-15,,,
 06/07/2026,Ana Paula Ribeiro,5827,Marina Souza,Producao,Encarregado de Producao,Abono,Abono por licenca,Aprovado,-480,,13/07/2026 20:01,
+06/07/2026,William Correia,2008,Roberto Alencar,Administrativo,Analista Administrativo,Hora Extra 100%,Trabalho em feriado,Aprovado,480,,,
 07/07/2026,Otavio Barros,9061,Fernanda Lima,Qualidade,Analista de Qualidade,Atraso,Transito na entrada,Aprovado,-15,,09/07/2026 14:08,Sim
 07/07/2026,Diego Ferreira,4321,Marina Souza,Producao,Operador de Producao,Atraso,Chegou apos o horario tolerado,Regularizado,-8,,07/07/2026 18:35,
 09/07/2026,Diego Ferreira,4321,Marina Souza,Producao,Operador de Producao,Esquecimento de Registro,Esqueceu de bater o ponto na entrada,Aprovado,-60,,10/07/2026 00:52,
@@ -79,7 +82,11 @@ data,colaborador,matricula,gestor,setor,cargo,tipo_ocorrencia,situacao,status,du
 12/07/2026,Otavio Barros,9061,Fernanda Lima,Qualidade,Analista de Qualidade,Abono,Abono medico,Regularizado,-240,,19/07/2026 18:47,
 12/07/2026,Elaine Souza,6404,Marina Souza,Producao,Encarregado de Producao,Atraso,Chegou apos o horario tolerado,Aprovado,-10,,12/07/2026 19:25,Sim
 12/07/2026,Rafael Teixeira,8493,Roberto Alencar,Administrativo,Assistente Administrativo,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Aprovado,-8,,12/07/2026 23:39,
+13/07/2026,Natalia Campos,4912,Fernanda Lima,Qualidade,Analista de Qualidade,Falta < 15min,Falta < 15min,Regularizado,-6,,,
+13/07/2026,Otavio Barros,9061,Fernanda Lima,Qualidade,Analista de Qualidade,Falta < 15min,Falta < 15min,Regularizado,-6,,,
+13/07/2026,Ana Paula Ribeiro,5827,Marina Souza,Producao,Encarregado de Producao,Falta < 15min,Falta < 15min,Regularizado,-6,,,
 13/07/2026,Fabio Nunes,6599,Marina Souza,Producao,Auxiliar de Producao,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Pendente,-12,,,
+13/07/2026,Fabio Nunes,6599,Marina Souza,Producao,Auxiliar de Producao,Falta < 15min,Falta < 15min,Regularizado,-8,,,
 14/07/2026,Juliana Rocha,5936,Carlos Bittencourt,Logistica,Operador de Empilhadeira,Hora Extra,Hora extra autorizada,Aprovado,120,Banco de Horas,16/07/2026 14:22,
 14/07/2026,Natalia Campos,4912,Fernanda Lima,Qualidade,Analista de Qualidade,Esquecimento de Registro,Esqueceu de bater o ponto na saida,Reprovado,-30,,14/07/2026 14:12,Sim
 15/07/2026,Bruno Cardoso,5987,Marina Souza,Producao,Operador de Producao,Atraso,Transito na entrada,Aprovado,-30,,16/07/2026 03:02,

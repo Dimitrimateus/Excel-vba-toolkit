@@ -452,7 +452,7 @@
         <div class="kpi-tile k-green">
           <div class="kpi-label">Total de horas extra</div>
           <div class="kpi-value" id="kpiExtra">0h</div>
-          <div class="kpi-sub">Banco de horas + pagamento</div>
+          <div class="kpi-sub" id="kpiExtraSub">Banco de horas + pagamento</div>
         </div>
         <div class="kpi-tile k-terra">
           <div class="kpi-label">Total de horas falta/atraso</div>
@@ -1354,16 +1354,20 @@
     $("kpiOcorrencias").textContent = formatNum(records.length);
     $("kpiOcorrenciasSub").textContent = records.length ? (formatDateSpan(records)) : "";
 
-    var extraTotal = 0, faltaTotal = 0, bancoTotal = 0;
+    var extraTotal = 0, faltaTotal = 0, bancoTotal = 0, extra100Total = 0;
     records.forEach(function(r){
       if (r.duracao > 0){
         extraTotal += r.duracao;
         if (/banco/i.test(r.destinoExtra||"")) bancoTotal += r.duracao;
+        if (/100%/.test(r.tipo||"")) extra100Total += r.duracao;
       } else if (r.duracao < 0){
         faltaTotal += Math.abs(r.duracao);
       }
     });
     $("kpiExtra").textContent = formatHoras(extraTotal);
+    $("kpiExtraSub").textContent = extra100Total > 0
+      ? "Banco de horas + pagamento · " + formatHoras(extra100Total) + " a 100%"
+      : "Banco de horas + pagamento";
     $("kpiFalta").textContent = formatHoras(faltaTotal);
     $("kpiBanco").textContent = formatHoras(bancoTotal);
 

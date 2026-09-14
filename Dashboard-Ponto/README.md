@@ -35,7 +35,7 @@ Colunas esperadas (a ordem das colunas não importa, o que importa é o nome do 
 | `gestor` | Não* | Gestor responsável pelo colaborador. | `Marina Souza` |
 | `setor` | Não* | Setor/área do colaborador. | `Produção` |
 | `cargo` | Não* | Cargo/função do colaborador (usada no gráfico "Ocorrências por cargo"). | `Auxiliar de Logística` |
-| `tipo_ocorrencia` | Não* | Tipo da ocorrência. | `Atraso`, `Falta`, `Saída Antecipada`, `Hora Extra`, `Esquecimento de Registro`, `Abono` |
+| `tipo_ocorrencia` | Não* | Tipo da ocorrência. | `Atraso`, `Falta`, `Saída Antecipada`, `Hora Extra`, `Hora Extra 100%`, `Esquecimento de Registro`, `Abono`, `Falta < 15min`, `Extra < 15min` |
 | `situacao` | Não | Descrição/justificativa da ocorrência (aparece no histórico). | `Atraso na entrada` |
 | `status` | Não | Situação do tratamento da ocorrência. | `Pendente`, `Aprovado`, `Reprovado`, `Regularizado` |
 | `duracao_minutos` | Não | Duração em minutos, **com sinal**: negativo para falta/atraso, positivo para hora extra. | `-30` (30 min de atraso), `120` (2h de hora extra) |
@@ -76,6 +76,12 @@ Abra `index.html` em qualquer navegador (Chrome, Edge, Firefox) e carregue o `mo
 
 `GerarCSV.bas`, nesta mesma pasta, é uma primeira versão do macro que consolida a aba "Tratamento" (da sua planilha "Tratamento Ponto") com os dados de "Ausência de marcação" do PontoNet numa aba "CSV" pronta para exportar. A macro procura automaticamente uma aba chamada **"PontoNet"** dentro da própria planilha "Tratamento Ponto" (é lá que você deve colar o relatório de ausência de marcação); se essa aba não existir, ela pede para você selecionar um arquivo separado. Esse arquivo **não foi testado dentro do Excel** (não há Excel disponível no ambiente onde ele foi escrito), então revise e rode primeiro numa cópia da planilha. O cabeçalho do próprio arquivo `.bas` explica o passo a passo de instalação e as regras de negócio que ainda precisam da sua confirmação (procure por "REGRA:").
 
-A macro também usa a aba **"Cartão ponto até dia"** (já existe na mesma planilha) para pegar a quantidade de horas: a coluna "BH" vira a hora de falta coberta por banco de horas, e a soma de "50%"+"60%"+"100%"+"120%" vira hora extra. As colunas "Extras"/"Faltas" da aba Tratamento continuam decidindo só SE aquele dia entra como ocorrência de extra/falta (é a única fonte usada para "extra e falta no mesmo dia"); a coluna "Pontonet" da Tratamento é ignorada de propósito.
+A macro também usa a aba **"Cartão ponto até dia"** (já existe na mesma planilha) para pegar a quantidade de horas:
+- Coluna **"BH"** (coluna P) → hora de falta coberta por banco de horas.
+- Coluna **"50%"** (coluna S) → hora extra "normal" (tipo `Hora Extra`).
+- Coluna **"100%"** (coluna U) → hora extra a 100%, sempre reportada em separado (tipo `Hora Extra 100%`) e indicada no card "Total de horas extra" do painel. As colunas "60%" e "120%" não são usadas.
+- Coluna **"Tolerância < 15min"** (coluna AA) → alimenta a visão "Ocorrências curtas": quando uma linha tem `Check = "S"` (que normalmente seria descartada por completo) e essa coluna confirma "Falta < 15min" ou "Extra < 15min", a linha entra no CSV só com esse tipo, sem contar nos totais normais de hora extra/falta.
+
+As colunas "Extras"/"Faltas" da aba Tratamento continuam decidindo só SE aquele dia entra como ocorrência de extra/falta "normal" (é a única fonte usada para "extra e falta no mesmo dia"); a coluna "Pontonet" da Tratamento é ignorada de propósito.
 
 `GerarCSV.txt` é o mesmo código, salvo em `.txt` (algumas caixas de e-mail/corporativas bloqueiam anexos `.bas` por segurança). Pra usar: importe `GerarCSV.bas` normalmente pelo VBA (Alt+F11 > Arquivo > Importar Arquivo); se só tiver o `.txt`, renomeie a extensão pra `.bas` antes de importar, ou abra um módulo novo em branco no VBA e cole o conteúdo do `.txt` dentro.

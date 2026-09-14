@@ -45,10 +45,21 @@ Option Explicit
 '     dias entram como ocorrência de hora extra / falta (e são a
 '     única fonte para "extra e falta no mesmo dia"). Mas a
 '     QUANTIDADE de horas gravada no CSV vem da aba "Cartão ponto até
-'     dia": coluna "BH" para as horas de falta cobertas por banco de
-'     horas, e a soma de "50%"+"60%"+"100%"+"120%" para hora extra.
+'     dia": coluna "BH" (coluna P) para as horas de falta cobertas por
+'     banco de horas; coluna "50%" (coluna S) para hora extra "normal".
 '     Se não achar a linha correspondente no Cartão Ponto, cai de
 '     volta para o valor da aba Tratamento (para não perder dado).
+'   - Hora extra a 100% (coluna "100%", coluna U, do Cartão Ponto) é
+'     reportada em linha separada, com tipo_ocorrencia = "Hora Extra
+'     100%", sempre que existir (Check "S" ou "N") — o painel mostra
+'     essa informação no card de "Total de horas extra". As colunas
+'     "60%" e "120%" NÃO são usadas.
+'   - Ocorrências curtas (< 15min): quando uma linha tem Check = "S"
+'     (que normalmente seria descartada por inteiro) E o Cartão Ponto
+'     confirma "Falta < 15min" ou "Extra < 15min" (coluna "Tolerância
+'     < 15min", coluna AA), essa linha entra no CSV mesmo assim, só
+'     pra alimentar a visão "Ocorrências curtas" do painel — sem
+'     contar nos totais normais de hora extra/falta.
 '   - "Horas Excedentes" (aba Tratamento, coluna "SIM"/vazio) vira uma
 '     lista separada no painel ("Relação de horas excedentes"), com
 '     as ocorrências marcadas "SIM".
@@ -140,30 +151,13 @@ Public Sub GerarAbaCSV()
         End If
 
         If nome = "" Or Not IsDate(dataOcorrencia) Then GoTo ProximaLinha
-        If UCase$(checkTxt) = VALOR_CHECK_IGNORAR Then GoTo ProximaLinha
-        If Not INCLUIR_SEM_ALTERACAO And (situacao = "" Or situacao = "Sem alteração") Then GoTo ProximaLinha
 
-        ' As colunas Extras/Faltas da aba Tratamento só decidem SE o dia
-        ' entra como ocorrência de extra/falta (pedido do RH). A
-        ' quantidade de horas gravada vem do Cartão Ponto (ver abaixo).
-        Dim minExtraTrat As Double, minExtra100Trat As Double, minFaltaTrat As Double
-        minExtraTrat = NzNum(wsTrat.Cells(r, colIdx("Extras")).Value) * 24 * 60
-        minExtra100Trat = NzNum(wsTrat.Cells(r, colIdx("Extra 100%")).Value) * 24 * 60
-        minFaltaTrat = NzNum(wsTrat.Cells(r, colIdx("Faltas")).Value) * 24 * 60
-        Dim temExtraTrat As Boolean, temFaltaTrat As Boolean
-        temExtraTrat = (minExtraTrat + minExtra100Trat) > 0
-        temFaltaTrat = minFaltaTrat > 0
-
-        ' Quantidade de horas "oficial": Cartão Ponto (BH = falta coberta
-        ' por banco de horas; 50%+60%+100%+120% = hora extra). Cai de
-        ' volta para o valor da aba Tratamento se não achar a linha
-        ' correspondente no Cartão Ponto (matrícula + data).
-        Dim minFaltaBHCartao As Double, minExtraCartao As Double
-        ObterValoresCartao dictCartao, matricula, dataOcorrencia, minFaltaBHCartao, minExtraCartao
-
-        Dim minExtra As Double, minFalta As Double
-        minExtra = IIf(minExtraCartao > 0, minExtraCartao, minExtraTrat + minExtra100Trat)
-        minFalta = IIf(minFaltaBHCartao > 0, minFaltaBHCartao, minFaltaTrat)
+        ' Cartão Ponto: consultado sempre, mesmo em linhas Check = "S",
+        ' porque a hora extra a 100% e as ocorrências curtas (<15min)
+        ' são reportadas independente do Check.
+        Dim minFaltaBHCartao As Double, minExtra50Cartao As Double, minExtra100Cartao As Double
+        Dim tolerancia15 As String
+        ObterValoresCartao dictCartao, matricula, dataOcorrencia, minFaltaBHCartao, minExtra50Cartao, minExtra100Cartao, tolerancia15
 
         Dim setorNome As String, cargoNome As String, cargoTratamento As String
         ObterSetorCargo dictRE, matricula, setorNome, cargoNome
@@ -181,11 +175,60 @@ Public Sub GerarAbaCSV()
         situacaoFinal = situacao
         If situacaoTexto <> "" Then situacaoFinal = situacaoTexto
 
+        ' Hora extra a 100%: reportada sempre que existir, em separado
+        ' da hora extra "normal" (50%), Check = "S" ou não.
+        If minExtra100Cartao > 0 Then
+            EscreverLinhaCSV wsCSV, linhaSaida, dataOcorrencia, nome, matricula, gestor, setorNome, cargoNome, _
+                "Hora Extra 100%", situacaoFinal, statusFinal, Round(minExtra100Cartao, 0), _
+                DESTINO_HORA_EXTRA_PADRAO, Empty, horasExcedentesTxt
+            linhaSaida = linhaSaida + 1
+        End If
+
+        If UCase$(checkTxt) = VALOR_CHECK_IGNORAR Then
+            ' Check = "S": não é uma ocorrência real pro RH, mas se o
+            ' Cartão Ponto confirmar que foi uma falta/extra < 15min,
+            ' registra só essa linha (pra alimentar "Ocorrências
+            ' curtas" no painel) e pula o resto do fluxo normal, sem
+            ' contar de novo nos totais de hora extra/falta.
+            If tolerancia15 <> "" Then
+                Dim valorCurta As Double
+                If InStr(1, tolerancia15, "Falta", vbTextCompare) > 0 Then
+                    valorCurta = -Round(minFaltaBHCartao, 0)
+                Else
+                    valorCurta = Round(minExtra50Cartao + minExtra100Cartao, 0)
+                End If
+                EscreverLinhaCSV wsCSV, linhaSaida, dataOcorrencia, nome, matricula, gestor, setorNome, cargoNome, _
+                    tolerancia15, tolerancia15, statusFinal, valorCurta, "", Empty, horasExcedentesTxt
+                linhaSaida = linhaSaida + 1
+            End If
+            GoTo ProximaLinha
+        End If
+
+        If Not INCLUIR_SEM_ALTERACAO And (situacao = "" Or situacao = "Sem alteração") Then GoTo ProximaLinha
+
+        ' As colunas Extras/Faltas da aba Tratamento só decidem SE o dia
+        ' entra como ocorrência de extra/falta (pedido do RH). A
+        ' quantidade de horas gravada vem do Cartão Ponto (ver abaixo).
+        Dim minExtraTrat As Double, minExtra100Trat As Double, minFaltaTrat As Double
+        minExtraTrat = NzNum(wsTrat.Cells(r, colIdx("Extras")).Value) * 24 * 60
+        minExtra100Trat = NzNum(wsTrat.Cells(r, colIdx("Extra 100%")).Value) * 24 * 60
+        minFaltaTrat = NzNum(wsTrat.Cells(r, colIdx("Faltas")).Value) * 24 * 60
+        Dim temExtraTrat As Boolean, temFaltaTrat As Boolean
+        temExtraTrat = (minExtraTrat + minExtra100Trat) > 0
+        temFaltaTrat = minFaltaTrat > 0
+
+        ' Quantidade de horas "oficial" da hora extra "normal" (50%):
+        ' Cartão Ponto, coluna S. Cai de volta pro valor da Tratamento
+        ' se não achar a linha correspondente no Cartão Ponto. A hora
+        ' extra a 100% (coluna U) já foi reportada em separado acima,
+        ' então NÃO entra aqui, pra não contar em dobro.
+        Dim minExtra As Double, minFalta As Double
+        minExtra = IIf(minExtra50Cartao > 0, minExtra50Cartao, minExtraTrat + minExtra100Trat)
+        minFalta = IIf(minFaltaBHCartao > 0, minFaltaBHCartao, minFaltaTrat)
+
         ' Linha de HORA EXTRA, se a aba Tratamento apontar extra nesse dia
-        ' (gate). O valor em minutos vem do Cartão Ponto (ou, na falta
-        ' dele, da própria Tratamento). Não recebe a demora do PontoNet:
-        ' essa demora é sobre a justificativa de ausência de marcação,
-        ' não sobre a extra.
+        ' (gate). Não recebe a demora do PontoNet: essa demora é sobre a
+        ' justificativa de ausência de marcação, não sobre a extra.
         If temExtraTrat Then
             EscreverLinhaCSV wsCSV, linhaSaida, dataOcorrencia, nome, matricula, gestor, setorNome, cargoNome, _
                 "Hora Extra", situacaoFinal, statusFinal, Round(minExtra, 0), _
@@ -361,10 +404,13 @@ Private Sub ObterSetorCargo(dictRE As Object, matricula As String, ByRef setorNo
 End Sub
 
 ' Chave: Matricula & "|" & AAAA-MM-DD. Guarda, em minutos, a coluna
-' "BH" (falta coberta por banco de horas) e a soma de
-' "50%"+"60%"+"100%"+"120%" (hora extra). Se a aba não existir (não
-' foi encontrada na planilha), devolve um dicionário vazio e o
-' chamador cai de volta para os valores da aba Tratamento.
+' "BH" (falta coberta por banco de horas, coluna P), a coluna "50%"
+' (coluna S, hora extra "normal") e a coluna "100%" (coluna U, hora
+' extra a 100%) — "60%" e "120%" não entram, por pedido do RH. Guarda
+' também o texto da coluna "Tolerância < 15min" ("Falta < 15min" /
+' "Extra < 15min"), usado para a visão "Ocorrências curtas". Se a aba
+' não existir (não foi encontrada na planilha), devolve um dicionário
+' vazio e o chamador cai de volta para os valores da aba Tratamento.
 Private Function MontarDicionarioCartao(ws As Worksheet) As Object
     Dim dict As Object
     Set dict = CreateObject("Scripting.Dictionary")
@@ -374,14 +420,13 @@ Private Function MontarDicionarioCartao(ws As Worksheet) As Object
     End If
 
     Dim colMat As Long, colData As Long, colBH As Long
-    Dim col50 As Long, col60 As Long, col100 As Long, col120 As Long
+    Dim col50 As Long, col100 As Long, colTolerancia As Long
     colMat = ColunaPorCabecalho(ws, "Matricula")
     colData = ColunaPorCabecalho(ws, "DT")
     colBH = ColunaPorCabecalho(ws, "BH")
     col50 = ColunaPorCabecalho(ws, "50%")
-    col60 = ColunaPorCabecalho(ws, "60%")
     col100 = ColunaPorCabecalho(ws, "100%")
-    col120 = ColunaPorCabecalho(ws, "120%")
+    colTolerancia = ColunaPorCabecalho(ws, "Tolerância < 15min")
     If colMat = 0 Or colData = 0 Then
         Set MontarDicionarioCartao = dict
         Exit Function
@@ -389,7 +434,7 @@ Private Function MontarDicionarioCartao(ws As Worksheet) As Object
 
     Dim ultimaLinha As Long, r As Long
     Dim mat As String, dt As Variant, chave As String
-    Dim bhMin As Double, extraMin As Double
+    Dim bhMin As Double, extra50Min As Double, extra100Min As Double, tolerTxt As String
 
     ultimaLinha = ws.Cells(ws.Rows.Count, colMat).End(xlUp).Row
     For r = 2 To ultimaLinha
@@ -398,18 +443,18 @@ Private Function MontarDicionarioCartao(ws As Worksheet) As Object
         If mat <> "" And IsDate(dt) Then
             chave = mat & "|" & Format(CDate(dt), "yyyy-mm-dd")
             bhMin = IIf(colBH > 0, NzNum(ws.Cells(r, colBH).Value), 0) * 24 * 60
-            extraMin = 0
-            If col50 > 0 Then extraMin = extraMin + NzNum(ws.Cells(r, col50).Value) * 24 * 60
-            If col60 > 0 Then extraMin = extraMin + NzNum(ws.Cells(r, col60).Value) * 24 * 60
-            If col100 > 0 Then extraMin = extraMin + NzNum(ws.Cells(r, col100).Value) * 24 * 60
-            If col120 > 0 Then extraMin = extraMin + NzNum(ws.Cells(r, col120).Value) * 24 * 60
+            extra50Min = IIf(col50 > 0, NzNum(ws.Cells(r, col50).Value), 0) * 24 * 60
+            extra100Min = IIf(col100 > 0, NzNum(ws.Cells(r, col100).Value), 0) * 24 * 60
+            tolerTxt = IIf(colTolerancia > 0, Trim$(CStr(ws.Cells(r, colTolerancia).Value)), "")
             ' se a matrícula tiver mais de uma linha no mesmo dia, soma
+            ' os minutos e guarda o último texto de tolerância não vazio
             If dict.Exists(chave) Then
                 Dim antigo As Variant
                 antigo = dict(chave)
-                dict(chave) = Array(antigo(0) + bhMin, antigo(1) + extraMin)
+                If tolerTxt = "" Then tolerTxt = antigo(3)
+                dict(chave) = Array(antigo(0) + bhMin, antigo(1) + extra50Min, antigo(2) + extra100Min, tolerTxt)
             Else
-                dict(chave) = Array(bhMin, extraMin)
+                dict(chave) = Array(bhMin, extra50Min, extra100Min, tolerTxt)
             End If
         End If
     Next r
@@ -417,10 +462,12 @@ Private Function MontarDicionarioCartao(ws As Worksheet) As Object
 End Function
 
 Private Sub ObterValoresCartao(dictCartao As Object, matricula As String, dataOcorrencia As Variant, _
-    ByRef minFaltaBH As Double, ByRef minExtra As Double)
+    ByRef minFaltaBH As Double, ByRef minExtra50 As Double, ByRef minExtra100 As Double, ByRef tolerancia15 As String)
 
     minFaltaBH = 0
-    minExtra = 0
+    minExtra50 = 0
+    minExtra100 = 0
+    tolerancia15 = ""
     If dictCartao Is Nothing Then Exit Sub
     If Not IsDate(dataOcorrencia) Then Exit Sub
 
@@ -430,7 +477,9 @@ Private Sub ObterValoresCartao(dictCartao As Object, matricula As String, dataOc
         Dim arr As Variant
         arr = dictCartao(chave)
         minFaltaBH = arr(0)
-        minExtra = arr(1)
+        minExtra50 = arr(1)
+        minExtra100 = arr(2)
+        tolerancia15 = arr(3)
     End If
 End Sub
 
