@@ -2,6 +2,16 @@
 
 Dashboard em um único arquivo HTML (`index.html`) para visualizar as ocorrências de ponto dos colaboradores. Não depende de internet nem de instalação: o RH carrega o CSV de dados, e o próprio arquivo HTML desenha os gráficos no navegador.
 
+## Responsividade (mobile e tablet)
+
+O painel funciona em celular e tablet, não só no desktop:
+
+- **Celular em pé (retrato):** aparece um aviso sugerindo girar a tela (some sozinho ao girar, ou pode ser fechado no X). Gráficos em 1 coluna, tabelas viram cartões empilhados (um por ocorrência/colaborador, com rótulo + valor), filtros ficam num painel retrátil ("2. Filtros", toque para abrir) e uma barra fixa embaixo dá atalho para Filtros/Topo/Histórico.
+- **Tablet:** os cartões se reorganizam sozinhos conforme o espaço (2 ou 3 colunas), e as tabelas continuam como tabela mesmo, com rolagem horizontal suave e a primeira coluna fixa.
+- **Desktop:** segue igual a antes (2 colunas, filtros na lateral direita, sempre abertos).
+
+Os gráficos são redesenhados automaticamente ao redimensionar a janela ou girar o aparelho, e os campos de filtro usam fonte de 16px no mobile para o Safari do iPhone não dar zoom sozinho ao tocar neles.
+
 ## Como funciona o envio
 
 1. O RH mantém **um único `index.html`**, sempre igual para todo mundo.
