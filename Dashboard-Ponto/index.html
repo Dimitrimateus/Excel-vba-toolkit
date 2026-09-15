@@ -331,16 +331,23 @@
     min-width:36px; min-height:36px;
   }
   .modal-close:hover{ color:var(--c-navy-dark); }
-  .modal-body{ padding:16px 20px 20px; overflow:auto; }
-  .modal-body .table-scroll{ max-height:none; }
+  .modal-body{ padding:16px 20px 20px; overflow:hidden; display:flex; flex-direction:column; }
+  /* o table-scroll (não o modal-body) é quem rola de verdade aqui, pra
+     o cabeçalho da tabela (position:sticky) congelar corretamente */
+  .modal-body .table-scroll{ max-height:none; flex:1 1 auto; min-height:0; }
   /* dentro do modal há espaço de sobra: mostra o cabeçalho da coluna
      por inteiro, quebrando linha em vez de cortar com "..." */
   .modal-body table.data-table th{
     white-space:normal; overflow:visible; text-overflow:clip; line-height:1.3;
   }
-  @media (max-width: 620px){
+  /* mesmo ponto de corte em que a tabela vira cards empilhados (768px):
+     o modal ocupa a tela toda, sem cantos/paddings sobrando */
+  @media (max-width: 768px){
     .modal-overlay{ padding:0; }
     .modal-panel{ width:100%; height:100%; max-height:100%; border-radius:0; }
+    .modal-header{ padding:14px 14px 12px; }
+    .modal-title{ font-size:15px; }
+    .modal-body{ padding:12px 12px 16px; }
   }
 
   /* ---------- Orientation banner ---------- */
@@ -407,6 +414,10 @@
     /* Tables become stacked cards: one card per row, fields labeled */
     .table-scroll{ max-height:none; border:none; overflow:visible; }
     .table-scroll.has-overflow::after{ display:none; }
+    /* no modal, quem rola nesse layout é o corpo do modal (a tabela
+       vira cards empilhados, sem cabeçalho fixo pra congelar) */
+    .modal-body{ overflow:auto; }
+    .modal-body .table-scroll{ flex:none; }
     table.data-table thead{ display:none; }
     table.data-table, table.data-table tbody, table.data-table tr, table.data-table td{ display:block; width:100%; }
     table.data-table{ border-collapse:separate; border-spacing:0 10px; }
@@ -1191,15 +1202,33 @@
       }
     });
     // As datas do eixo X precisam de bem mais espaço que um numerozinho
-    // de valor, então usam um espaçamento mais folgado, senão viram
-    // uma sopa de letrinhas ilegível quando há muitos dias.
-    var labelEveryData = Math.max(1, Math.ceil(points.length/10));
-    points.forEach(function(p,i){
-      if (i % labelEveryData === 0 || i === points.length-1){
-        var t = svgEl("text", { x:coords[i][0], y:H-padB+16, class:"axis-label", "text-anchor":"middle" });
-        t.textContent = p.label;
-        svg.appendChild(t);
+    // de valor, então o espaçamento é medido em pixels reais (não em
+    // "1 a cada N pontos"), senão em telas estreitas (celular) as
+    // datas embolam umas nas outras por causa das ainda serem 10
+    // rótulos, só que espremidos num container bem mais estreito.
+    var minGapDataPx = 46;
+    var shownIdx = [];
+    var lastLabelX = -Infinity;
+    coords.forEach(function(c,i){
+      if (c[0] - lastLabelX >= minGapDataPx){
+        shownIdx.push(i);
+        lastLabelX = c[0];
       }
+    });
+    var lastPointIdx = points.length - 1;
+    if (shownIdx[shownIdx.length-1] !== lastPointIdx){
+      if (coords[lastPointIdx][0] - lastLabelX >= minGapDataPx){
+        shownIdx.push(lastPointIdx);
+      } else {
+        // o último rótulo normal ficaria colado no último ponto: troca
+        // pelo último ponto (a data mais recente é sempre a mais útil)
+        shownIdx[shownIdx.length-1] = lastPointIdx;
+      }
+    }
+    shownIdx.forEach(function(i){
+      var t = svgEl("text", { x:coords[i][0], y:H-padB+16, class:"axis-label", "text-anchor":"middle" });
+      t.textContent = points[i].label;
+      svg.appendChild(t);
     });
     container.appendChild(svg);
     wireTooltips(svg);
