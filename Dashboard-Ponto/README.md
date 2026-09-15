@@ -35,7 +35,7 @@ Colunas esperadas (a ordem das colunas não importa, o que importa é o nome do 
 | `gestor` | Não* | Gestor responsável pelo colaborador. | `Marina Souza` |
 | `setor` | Não* | Setor/área do colaborador. | `Produção` |
 | `cargo` | Não* | Cargo/função do colaborador (usada no gráfico "Ocorrências por cargo"). | `Auxiliar de Logística` |
-| `tipo_ocorrencia` | Não* | Tipo da ocorrência. | `Atraso`, `Falta`, `Saída Antecipada`, `Hora Extra`, `Hora Extra 100%`, `Esquecimento de Registro`, `Abono`, `Falta < 15min`, `Extra < 15min` |
+| `tipo_ocorrencia` | Não* | Tipo da ocorrência. `Hora Extra`/`Hora Extra 100%` e `Falta < 15min`/`Extra < 15min` não entram na CONTAGEM de ocorrências (KPI, gráficos "Ocorrências por...", histórico) — só nas horas/cards próprios deles (ver abaixo). | `Atraso`, `Falta`, `Saída Antecipada`, `Hora Extra`, `Hora Extra 100%`, `Esquecimento de Registro`, `Abono`, `Falta < 15min`, `Extra < 15min` |
 | `situacao` | Não | Descrição/justificativa da ocorrência (aparece no histórico). | `Atraso na entrada` |
 | `status` | Não | Situação do tratamento da ocorrência. | `Pendente`, `Aprovado`, `Reprovado`, `Regularizado` |
 | `duracao_minutos` | Não | Duração em minutos, **com sinal**: negativo para falta/atraso, positivo para hora extra. | `-30` (30 min de atraso), `120` (2h de hora extra) |

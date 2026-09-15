@@ -736,6 +736,20 @@
   var TIPOS_CURTAS = ["Falta < 15min", "Extra < 15min"];
   function isTipoCurta(tipo){ return TIPOS_CURTAS.indexOf(tipo) !== -1; }
 
+  // "Hora Extra" / "Hora Extra 100%": não entram na CONTAGEM de
+  // ocorrências (KPI "Ocorrências no período", gráficos "Ocorrências
+  // por...", "Colaboradores com mais ocorrências", histórico) — mas
+  // continuam contando nas horas (KPI "Total de horas extra" e no
+  // gráfico "Banco de horas e hora extra por colaborador").
+  var TIPOS_HORA_EXTRA = ["Hora Extra", "Hora Extra 100%"];
+  function isTipoHoraExtra(tipo){ return TIPOS_HORA_EXTRA.indexOf(tipo) !== -1; }
+
+  // Combina os três: nada disso conta como "ocorrência" pros
+  // gráficos/KPI de ocorrências/histórico/filtro de Tipo.
+  function isTipoNaoOcorrencia(tipo){
+    return isTipoResumo(tipo) || isTipoCurta(tipo) || isTipoHoraExtra(tipo);
+  }
+
   var state = {
     records: [],
     colorMaps: { gestor:{}, setor:{}, cargo:{}, tipo:{}, status:{} },
@@ -1319,10 +1333,10 @@
      5. FILTROS
   ========================================================= */
   // Registros "normais" pro cálculo de período/datas: sem as
-  // linhas-resumo (auditoria, pausas térmicas) nem as ocorrências
-  // curtas (que só alimentam o card próprio delas).
+  // linhas-resumo (auditoria, pausas térmicas), ocorrências curtas ou
+  // hora extra (que têm suas próprias vistas dedicadas).
   function recordsGerais(){
-    return state.records.filter(function(r){ return !isTipoResumo(r.tipo) && !isTipoCurta(r.tipo); });
+    return state.records.filter(function(r){ return !isTipoNaoOcorrencia(r.tipo); });
   }
   function uniqueSorted(records, keyFn){
     var set = {};
@@ -1333,7 +1347,7 @@
   function populateFilterOptions(){
     var gestores = uniqueSorted(state.records, function(r){ return r.gestor; });
     var cargos = uniqueSorted(state.records, function(r){ return r.cargo; });
-    var tipos = uniqueSorted(state.records.filter(function(r){ return !isTipoResumo(r.tipo) && !isTipoCurta(r.tipo); }), function(r){ return r.tipo; });
+    var tipos = uniqueSorted(state.records.filter(function(r){ return !isTipoNaoOcorrencia(r.tipo); }), function(r){ return r.tipo; });
     var statuses = uniqueSorted(state.records, function(r){ return r.status; });
     var colaboradores = uniqueSorted(state.records, function(r){ return r.colaborador; });
 
@@ -1491,7 +1505,10 @@
   /* =========================================================
      6. RENDERIZAÇÃO GERAL DO DASHBOARD
   ========================================================= */
-  function renderKPIs(records){
+  // records: usado pras horas (extra/falta) e colaboradores envolvidos —
+  // inclui hora extra. ocorrenciasRecords: usado pra contagem de
+  // ocorrências — sem hora extra (pedido do RH).
+  function renderKPIs(records, ocorrenciasRecords){
     var colaboradoresSet = {};
     records.forEach(function(r){ colaboradoresSet[r.colaborador] = true; });
     var totalColaboradores = Object.keys(colaboradoresSet).length;
@@ -1500,8 +1517,8 @@
     $("kpiColaboradores").textContent = formatNum(totalColaboradores);
     $("kpiColaboradoresSub").textContent = "de " + formatNum(totalGeral) + " no arquivo carregado";
 
-    $("kpiOcorrencias").textContent = formatNum(records.length);
-    $("kpiOcorrenciasSub").textContent = records.length ? (formatDateSpan(records)) : "";
+    $("kpiOcorrencias").textContent = formatNum(ocorrenciasRecords.length);
+    $("kpiOcorrenciasSub").textContent = ocorrenciasRecords.length ? (formatDateSpan(ocorrenciasRecords)) : "";
 
     var extraTotal = 0, faltaTotal = 0, extra100Total = 0;
     records.forEach(function(r){
@@ -1560,16 +1577,20 @@
 
   function renderDashboard(){
     var records = getFilteredRecords();
+    // hora extra continua nas horas (KPI, banco de horas) mas não entra
+    // na CONTAGEM de ocorrências (gráficos "Ocorrências por...",
+    // "Colaboradores com mais ocorrências", histórico) — pedido do RH.
+    var ocorrenciasRecords = records.filter(function(r){ return !isTipoHoraExtra(r.tipo); });
 
-    renderKPIs(records);
+    renderKPIs(records, ocorrenciasRecords);
 
-    renderDonut($("chartTipo"), ocorrenciasPorTipo(records));
-    renderBarV($("chartDiaSemana"), ocorrenciasPorDiaSemana(records));
-    renderLine($("chartPorData"), ocorrenciasPorData(records));
-    renderBarH($("chartPorGestor"), ocorrenciasPorGestor(records, 12));
-    renderBarH($("chartPorCargo"), ocorrenciasPorCargo(records, 12));
+    renderDonut($("chartTipo"), ocorrenciasPorTipo(ocorrenciasRecords));
+    renderBarV($("chartDiaSemana"), ocorrenciasPorDiaSemana(ocorrenciasRecords));
+    renderLine($("chartPorData"), ocorrenciasPorData(ocorrenciasRecords));
+    renderBarH($("chartPorGestor"), ocorrenciasPorGestor(ocorrenciasRecords, 12));
+    renderBarH($("chartPorCargo"), ocorrenciasPorCargo(ocorrenciasRecords, 12));
 
-    renderBarH($("chartTopColaboradores"), topColaboradores(records, 10));
+    renderBarH($("chartTopColaboradores"), topColaboradores(ocorrenciasRecords, 10));
 
     renderTableSimple($("tableExtraFalta"),
       [{label:"Colaborador", render:function(r){return escapeHtml(r.colaborador);}},
@@ -1616,7 +1637,7 @@
        {label:"Maior demora", width:"110px", render:function(r){return formatDelay(r.maior);}}],
       demoraStats(records, function(r){ return r.colaborador; }));
 
-    renderHistory(records);
+    renderHistory(ocorrenciasRecords);
     updateFiltersBadge();
     setTimeout(updateScrollHints, 0);
   }
