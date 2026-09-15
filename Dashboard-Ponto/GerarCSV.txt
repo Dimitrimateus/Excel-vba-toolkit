@@ -100,7 +100,22 @@ Public Sub GerarAbaCSV()
     Dim wsTrat As Worksheet, wsRE As Worksheet, wsCartao As Worksheet
     Set wsTrat = wbTrat.Sheets("Tratamento")
     Set wsRE = wbTrat.Sheets("RE 08.09")
-    Set wsCartao = EncontrarAba(wbTrat, "Cartão ponto")
+
+    ' Pode haver várias abas "Cartão ponto ..." (uma por mês, ex.: Julho/
+    ' Agosto/Atual) — usamos até as 3 mais recentes (pela maior data na
+    ' coluna DT, não pelo nome) para a auditoria de "extra e falta no
+    ' mesmo dia" dos últimos meses. A mais recente delas também é a
+    ' usada, como antes, para os valores de BH/50%/100%/Tolerância do
+    ' mês atual.
+    Const MAXIMO_MESES_AUDITORIA As Long = 3
+    Dim abasCartao As Collection
+    Set abasCartao = AbasMaisRecentes(EncontrarTodasAbas(wbTrat, "Cartão ponto"), MAXIMO_MESES_AUDITORIA)
+
+    If abasCartao.Count > 0 Then
+        Set wsCartao = abasCartao(1) ' já é a mais recente (AbasMaisRecentes ordena assim)
+    Else
+        Set wsCartao = Nothing
+    End If
 
     ' Primeiro procura uma aba "PontoNet" na própria planilha; só abre
     ' um arquivo separado se essa aba não existir.
@@ -130,6 +145,13 @@ Public Sub GerarAbaCSV()
     Dim linhaSaida As Long
     linhaSaida = 2
 
+    ' guarda o primeiro gestor não vazio visto por matrícula, pra
+    ' reaproveitar na linha de auditoria de 3 meses (colaboradores que só
+    ' aparecem numa aba de Cartão Ponto antiga não têm gestor em nenhum
+    ' outro lugar da planilha)
+    Dim dictGestorPorMatricula As Object
+    Set dictGestorPorMatricula = CreateObject("Scripting.Dictionary")
+
     Dim r As Long
     For r = 2 To ultimaLinha
 
@@ -151,6 +173,10 @@ Public Sub GerarAbaCSV()
         End If
 
         If nome = "" Or Not IsDate(dataOcorrencia) Then GoTo ProximaLinha
+
+        If gestor <> "" And matricula <> "" Then
+            If Not dictGestorPorMatricula.Exists(matricula) Then dictGestorPorMatricula.Add matricula, gestor
+        End If
 
         ' Cartão Ponto: consultado sempre, mesmo em linhas Check = "S",
         ' porque a hora extra a 100% e as ocorrências curtas (<15min)
@@ -259,9 +285,92 @@ Public Sub GerarAbaCSV()
 ProximaLinha:
     Next r
 
+    ' =====================================================================
+    ' Auditoria de "extra e falta no mesmo dia" nos últimos meses
+    ' ---------------------------------------------------------------------
+    ' Uma linha por colaborador (além das linhas de ocorrência normais
+    ' acima), somando quantos dias com "Banco de horas e extra no mesmo
+    ' dia" = Sim cada um teve em cada aba de Cartão Ponto encontrada
+    ' (até MAXIMO_MESES_AUDITORIA, a mais recente sendo o "mês atual").
+    ' A partir de 10 no total de 3 meses, o painel sinaliza a linha para
+    ' a auditoria (pedido do RH) — ver colunas
+    ' ocorrencias_extra_falta_mes_atual / ocorrencias_extra_falta_3_meses.
+    ' =====================================================================
+    Dim qtdColaboradoresAuditoria As Long
+    qtdColaboradoresAuditoria = 0
+
+    If abasCartao.Count > 0 Then
+        Dim dictNomesCartao As Object
+        Set dictNomesCartao = CreateObject("Scripting.Dictionary")
+
+        ' matricula -> Dictionary(nome da aba -> contagem de "Sim")
+        Dim dictContagens As Object
+        Set dictContagens = CreateObject("Scripting.Dictionary")
+
+        Dim nomeAbaAtual As String
+        nomeAbaAtual = wsCartao.Name ' abasCartao(1), a mais recente
+
+        Dim abaIter As Variant
+        For Each abaIter In abasCartao
+            Dim wsIter As Worksheet
+            Set wsIter = abaIter
+
+            Dim dictSim As Object
+            Set dictSim = ContarExtraFaltaMesmoDia(wsIter, dictNomesCartao)
+
+            Dim matIter As Variant
+            For Each matIter In dictSim.Keys
+                If Not dictContagens.Exists(CStr(matIter)) Then
+                    dictContagens.Add CStr(matIter), CreateObject("Scripting.Dictionary")
+                End If
+                dictContagens(CStr(matIter)).Add wsIter.Name, dictSim(matIter)
+            Next matIter
+        Next abaIter
+
+        Dim matAud As Variant
+        For Each matAud In dictContagens.Keys
+            Dim contagensAba As Object
+            Set contagensAba = dictContagens(CStr(matAud))
+
+            Dim total3Meses As Long, mesAtualCount As Long, nomeAbaK As Variant
+            total3Meses = 0
+            mesAtualCount = 0
+            For Each nomeAbaK In contagensAba.Keys
+                total3Meses = total3Meses + contagensAba(nomeAbaK)
+                If CStr(nomeAbaK) = nomeAbaAtual Then mesAtualCount = contagensAba(nomeAbaK)
+            Next nomeAbaK
+
+            If total3Meses > 0 Then
+                Dim setorAud As String, cargoAud As String, nomeAud As String, gestorAud As String
+                ObterSetorCargo dictRE, CStr(matAud), setorAud, cargoAud
+
+                nomeAud = ""
+                If dictNomesCartao.Exists(CStr(matAud)) Then nomeAud = dictNomesCartao(CStr(matAud))
+                If nomeAud = "" Then nomeAud = "Matrícula " & matAud
+
+                gestorAud = ""
+                If dictGestorPorMatricula.Exists(CStr(matAud)) Then gestorAud = dictGestorPorMatricula(CStr(matAud))
+
+                EscreverLinhaCSV wsCSV, linhaSaida, DataMaximaAba(wsCartao), nomeAud, CStr(matAud), gestorAud, _
+                    setorAud, cargoAud, "Auditoria Extra e Falta (3 Meses)", "", "Pendente", 0, "", Empty, "", _
+                    mesAtualCount, total3Meses
+                linhaSaida = linhaSaida + 1
+                qtdColaboradoresAuditoria = qtdColaboradoresAuditoria + 1
+            End If
+        Next matAud
+    End If
+
     If Not wbAus Is Nothing Then wbAus.Close SaveChanges:=False
 
-    MsgBox (linhaSaida - 2) & " linha(s) geradas na aba CSV.", vbInformation, "Gerar CSV"
+    Dim msgAuditoria As String
+    If abasCartao.Count > 0 Then
+        msgAuditoria = vbCrLf & qtdColaboradoresAuditoria & " colaborador(es) com extra+falta no mesmo dia nos últimos " & _
+            abasCartao.Count & " mês(es) (" & nomeAbaAtual & " = mês atual)."
+    Else
+        msgAuditoria = vbCrLf & "Nenhuma aba ""Cartão ponto ..."" encontrada; auditoria de 3 meses não gerada."
+    End If
+
+    MsgBox (linhaSaida - 2) & " linha(s) geradas na aba CSV" & msgAuditoria, vbInformation, "Gerar CSV"
 End Sub
 
 ' ---------------------------------------------------------------------
@@ -338,6 +447,135 @@ Private Function EncontrarAba(wb As Workbook, prefixo As String) As Worksheet
         End If
     Next ws
     Set EncontrarAba = Nothing
+End Function
+
+' Acha TODAS as abas cujo nome comece com "prefixo" (ex.: "Cartão ponto
+' Julho", "Cartão ponto Agosto", "Cartão ponto Atual"). Usado para a
+' auditoria de "extra e falta no mesmo dia" nos últimos meses, que
+' precisa somar todas as abas de Cartão Ponto presentes na planilha —
+' não só a mais recente.
+Private Function EncontrarTodasAbas(wb As Workbook, prefixo As String) As Collection
+    Dim col As New Collection
+    Dim ws As Worksheet
+    For Each ws In wb.Sheets
+        If LCase$(Left$(Trim$(ws.Name), Len(prefixo))) = LCase$(prefixo) Then
+            col.Add ws
+        End If
+    Next ws
+    Set EncontrarTodasAbas = col
+End Function
+
+' Maior data encontrada na coluna "DT" da aba (0 = aba vazia/sem
+' coluna DT). Usado para descobrir qual aba de Cartão Ponto é a do mês
+' atual (a de data mais recente), sem depender do nome da aba.
+Private Function DataMaximaAba(ws As Worksheet) As Date
+    Dim colData As Long, ultimaLinha As Long, r As Long, dt As Variant
+    Dim maxData As Date
+    maxData = 0
+    If ws Is Nothing Then
+        DataMaximaAba = maxData
+        Exit Function
+    End If
+    colData = ColunaPorCabecalho(ws, "DT")
+    If colData = 0 Then
+        DataMaximaAba = maxData
+        Exit Function
+    End If
+    ultimaLinha = ws.Cells(ws.Rows.Count, colData).End(xlUp).Row
+    For r = 2 To ultimaLinha
+        dt = ws.Cells(r, colData).Value
+        If IsDate(dt) Then
+            If CDate(dt) > maxData Then maxData = CDate(dt)
+        End If
+    Next r
+    DataMaximaAba = maxData
+End Function
+
+' Dentre as abas de Cartão Ponto encontradas, mantém só as N com a
+' data mais recente (evita que uma aba antiga esquecida na planilha
+' entre pra sempre no cálculo de 3 meses). Devolve uma NOVA Collection,
+' ordenada da mais recente para a mais antiga.
+Private Function AbasMaisRecentes(abas As Collection, maximoAbas As Long) As Collection
+    Dim n As Long
+    n = abas.Count
+    Dim wsArr() As Worksheet, dtArr() As Date
+    If n = 0 Then
+        Set AbasMaisRecentes = New Collection
+        Exit Function
+    End If
+    ReDim wsArr(1 To n)
+    ReDim dtArr(1 To n)
+
+    Dim i As Long, a As Variant
+    i = 1
+    For Each a In abas
+        Set wsArr(i) = a
+        dtArr(i) = DataMaximaAba(wsArr(i))
+        i = i + 1
+    Next a
+
+    ' ordenação simples (poucas abas, não precisa de nada sofisticado)
+    Dim j As Long
+    For i = 1 To n - 1
+        For j = i + 1 To n
+            If dtArr(j) > dtArr(i) Then
+                Dim tmpD As Date, tmpW As Worksheet
+                tmpD = dtArr(i): dtArr(i) = dtArr(j): dtArr(j) = tmpD
+                Set tmpW = wsArr(i): Set wsArr(i) = wsArr(j): Set wsArr(j) = tmpW
+            End If
+        Next j
+    Next i
+
+    Dim resultado As New Collection
+    For i = 1 To n
+        If i > maximoAbas Then Exit For
+        resultado.Add wsArr(i)
+    Next i
+    Set AbasMaisRecentes = resultado
+End Function
+
+' Conta, por matrícula, quantas linhas têm "Sim" na coluna "Banco de
+' horas e extra no mesmo dia" dessa aba de Cartão Ponto (auditoria de
+' extra+falta no mesmo dia). Também preenche dictNomes (matricula ->
+' nome) para colaboradores que só existem nessa aba antiga (não estão
+' mais na Tratamento do mês atual).
+Private Function ContarExtraFaltaMesmoDia(ws As Worksheet, dictNomes As Object) As Object
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+    If ws Is Nothing Then
+        Set ContarExtraFaltaMesmoDia = dict
+        Exit Function
+    End If
+
+    Dim colMat As Long, colNome As Long, colFlag As Long
+    colMat = ColunaPorCabecalho(ws, "Matrícula")
+    colNome = ColunaPorCabecalho(ws, "Nome")
+    colFlag = ColunaPorCabecalho(ws, "Banco de horas e extra no mesmo dia")
+    If colMat = 0 Or colFlag = 0 Then
+        Set ContarExtraFaltaMesmoDia = dict
+        Exit Function
+    End If
+
+    Dim ultimaLinha As Long, r As Long, mat As String, flagTxt As String, nome As String
+    ultimaLinha = ws.Cells(ws.Rows.Count, colMat).End(xlUp).Row
+    For r = 2 To ultimaLinha
+        mat = Trim$(CStr(ws.Cells(r, colMat).Value))
+        If mat <> "" Then
+            flagTxt = LCase$(Trim$(CStr(ws.Cells(r, colFlag).Value)))
+            If flagTxt = "sim" Then
+                If dict.Exists(mat) Then
+                    dict(mat) = dict(mat) + 1
+                Else
+                    dict(mat) = 1
+                End If
+            End If
+            If Not dictNomes.Exists(mat) Then
+                nome = IIf(colNome > 0, Trim$(CStr(ws.Cells(r, colNome).Value)), "")
+                If nome <> "" Then dictNomes.Add mat, nome
+            End If
+        End If
+    Next r
+    Set ContarExtraFaltaMesmoDia = dict
 End Function
 
 Private Function ColunaPorCabecalho(ws As Worksheet, cabecalho As String) As Long
@@ -590,7 +828,7 @@ Private Function PrepararAbaCSV(wb As Workbook) As Worksheet
     Dim cabecalhos As Variant, i As Long
     cabecalhos = Array("data", "colaborador", "matricula", "gestor", "setor", "cargo", "tipo_ocorrencia", _
                         "situacao", "status", "duracao_minutos", "destino_horas_extra", "data_tratativa_pontonet", _
-                        "horas_excedentes")
+                        "horas_excedentes", "ocorrencias_extra_falta_mes_atual", "ocorrencias_extra_falta_3_meses")
     For i = LBound(cabecalhos) To UBound(cabecalhos)
         ws.Cells(1, i + 1).Value = cabecalhos(i)
     Next i
@@ -603,7 +841,8 @@ End Function
 Private Sub EscreverLinhaCSV(ws As Worksheet, linha As Long, dataOcorrencia As Variant, nome As String, _
     matricula As String, gestor As String, setorNome As String, cargoNome As String, tipoOcorrencia As String, _
     situacaoTxt As String, statusTxt As String, duracaoMinutos As Double, destinoExtra As String, tratativa As Variant, _
-    Optional horasExcedentes As String = "")
+    Optional horasExcedentes As String = "", Optional extraFaltaMesAtual As Variant = Empty, _
+    Optional extraFaltaTotal3Meses As Variant = Empty)
 
     ws.Cells(linha, 1).Value = CDate(dataOcorrencia)
     ws.Cells(linha, 2).Value = nome
@@ -622,6 +861,8 @@ Private Sub EscreverLinhaCSV(ws As Worksheet, linha As Long, dataOcorrencia As V
         ws.Cells(linha, 12).Value = ""
     End If
     ws.Cells(linha, 13).Value = horasExcedentes
+    If Not IsEmpty(extraFaltaMesAtual) Then ws.Cells(linha, 14).Value = extraFaltaMesAtual
+    If Not IsEmpty(extraFaltaTotal3Meses) Then ws.Cells(linha, 15).Value = extraFaltaTotal3Meses
 End Sub
 
 Private Function EscolherPasta() As String

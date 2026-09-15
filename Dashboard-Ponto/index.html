@@ -275,6 +275,9 @@
   table.data-table th.sorted-asc::after{ content:" \2191"; }
   table.data-table th.sorted-desc::after{ content:" \2193"; }
   table.data-table tbody tr:hover{ background:var(--c-paper-dim); }
+  table.data-table tr.row-alert{ background:#FDECEC; }
+  table.data-table tr.row-alert:hover{ background:#FBDADA; }
+  table.data-table tr.row-alert td{ color:#8A1418; font-weight:700; }
   .table-scroll{ position:relative; max-height:340px; overflow:auto; border:1px solid var(--c-line); border-radius:var(--radius-card); }
   .table-scroll table.data-table th{ top:0; }
   .table-scroll.has-overflow::after{
@@ -506,7 +509,7 @@
           </div>
           <div class="card">
             <div class="card-title">Extra e falta no mesmo dia</div>
-            <div class="card-hint">Colaboradores com mais dias em que houve falta/atraso e hora extra simultaneamente</div>
+            <div class="card-hint">Este mês e total dos últimos 3 meses &middot; linhas em vermelho atingiram 10+ ocorrências na soma dos 3 meses (pontuação negativa na auditoria)</div>
             <div class="card-body" id="tableExtraFalta"></div>
           </div>
           <div class="card">
@@ -688,8 +691,13 @@
     duracao:   ["duracao_minutos","duracao","minutos","qtd_minutos"],
     destinoExtra: ["destino_horas_extra","destino_extra","tipo_hora_extra","destino"],
     tratativa: ["data_tratativa_pontonet","tratativa_pontonet","data_tratativa","data_regularizacao","data_aprovacao"],
-    horasExcedentes: ["horas_excedentes","horas_excedente","horaexcedente","excedente"]
+    horasExcedentes: ["horas_excedentes","horas_excedente","horaexcedente","excedente"],
+    extraFaltaMesAtual: ["ocorrencias_extra_falta_mes_atual","extra_falta_mes_atual"],
+    extraFaltaTotal3Meses: ["ocorrencias_extra_falta_3_meses","extra_falta_3_meses","extra_falta_total_3_meses"]
   };
+
+  var TIPO_AUDITORIA_EXTRA_FALTA = "Auditoria Extra e Falta (3 Meses)";
+  var LIMITE_AUDITORIA_EXTRA_FALTA = 10;
 
   var state = {
     records: [],
@@ -858,7 +866,9 @@
         duracao: idx.duracao != null ? parseNumber(r[idx.duracao]) : 0,
         destinoExtra: idx.destinoExtra != null ? (r[idx.destinoExtra]||"").trim() : "",
         tratativa: tratativaRaw ? parseDate(tratativaRaw) : null,
-        horasExcedentes: idx.horasExcedentes != null && /^(sim|s|true|1|x)$/i.test((r[idx.horasExcedentes]||"").trim())
+        horasExcedentes: idx.horasExcedentes != null && /^(sim|s|true|1|x)$/i.test((r[idx.horasExcedentes]||"").trim()),
+        extraFaltaMesAtual: idx.extraFaltaMesAtual != null ? parseNumber(r[idx.extraFaltaMesAtual]) : 0,
+        extraFaltaTotal3Meses: idx.extraFaltaTotal3Meses != null ? parseNumber(r[idx.extraFaltaTotal3Meses]) : 0
       };
       out.push(rec);
     }
@@ -1168,6 +1178,33 @@
     });
     return Object.values(perColab).sort(function(a,b){ return b.dias-a.dias; }).slice(0,n);
   }
+  // Vista principal de "extra e falta no mesmo dia": usa as linhas de
+  // auditoria (uma por colaborador, com o mês atual e o total dos
+  // últimos meses, já calculados pelo macro a partir da coluna "Banco de
+  // horas e extra no mesmo dia" do Cartão Ponto). Se o CSV for de uma
+  // versão antiga do macro (sem essas linhas), cai de volta pro cálculo
+  // feito no navegador a partir de Hora Extra + Falta no mesmo dia -
+  // nesse caso só reflete o mês atual, sem histórico de 3 meses.
+  function extraFaltaAuditoria(n){
+    var linhas = getAuditoriaRecords();
+    var resultado;
+    if (linhas.length){
+      resultado = linhas.map(function(r){
+        return {
+          colaborador: r.colaborador,
+          gestor: r.gestor,
+          mesAtual: r.extraFaltaMesAtual || 0,
+          total3Meses: r.extraFaltaTotal3Meses || 0
+        };
+      });
+    } else {
+      resultado = extraEFaltaMesmoDia(getFilteredRecords(), 9999).map(function(g){
+        return { colaborador: g.colaborador, gestor: g.gestor, mesAtual: g.dias, total3Meses: g.dias };
+      });
+    }
+    resultado.forEach(function(r){ r.auditoria = r.total3Meses >= LIMITE_AUDITORIA_EXTRA_FALTA; });
+    return resultado.sort(function(a,b){ return b.total3Meses - a.total3Meses || b.mesAtual - a.mesAtual; }).slice(0, n);
+  }
   function curtaDuracao(records, n){
     var perColab = {};
     records.forEach(function(r){
@@ -1217,6 +1254,9 @@
   /* =========================================================
      5. FILTROS
   ========================================================= */
+  function nonAuditRecords(){
+    return state.records.filter(function(r){ return r.tipo !== TIPO_AUDITORIA_EXTRA_FALTA; });
+  }
   function uniqueSorted(records, keyFn){
     var set = {};
     records.forEach(function(r){ set[keyFn(r)] = true; });
@@ -1226,7 +1266,7 @@
   function populateFilterOptions(){
     var gestores = uniqueSorted(state.records, function(r){ return r.gestor; });
     var cargos = uniqueSorted(state.records, function(r){ return r.cargo; });
-    var tipos = uniqueSorted(state.records, function(r){ return r.tipo; });
+    var tipos = uniqueSorted(state.records.filter(function(r){ return r.tipo !== TIPO_AUDITORIA_EXTRA_FALTA; }), function(r){ return r.tipo; });
     var statuses = uniqueSorted(state.records, function(r){ return r.status; });
     var colaboradores = uniqueSorted(state.records, function(r){ return r.colaborador; });
 
@@ -1263,9 +1303,11 @@
       statusGroup.appendChild(chip);
     });
 
-    // pré-preenche o período com o intervalo total dos dados
-    if (state.records.length){
-      var dates = state.records.map(function(r){ return r.data.getTime(); });
+    // pré-preenche o período com o intervalo total dos dados (sem contar
+    // as linhas de auditoria de 3 meses, que não são ocorrências datadas)
+    var recordsParaPeriodo = nonAuditRecords();
+    if (recordsParaPeriodo.length){
+      var dates = recordsParaPeriodo.map(function(r){ return r.data.getTime(); });
       var minD = new Date(Math.min.apply(null, dates));
       var maxD = new Date(Math.max.apply(null, dates));
       $("fDataIni").value = toISODate(minD);
@@ -1294,6 +1336,10 @@
     var dFim = $("fDataFim").value ? new Date($("fDataFim").value+"T23:59:59") : null;
 
     return state.records.filter(function(r){
+      // linhas de auditoria (3 meses) não são ocorrências do período: têm
+      // sua própria vista dedicada (extraFaltaAuditoria), não entram nos
+      // gráficos/KPIs/histórico gerais.
+      if (r.tipo === TIPO_AUDITORIA_EXTRA_FALTA) return false;
       if (gestor && r.gestor !== gestor) return false;
       if (cargo && r.cargo !== cargo) return false;
       if (colabQuery && stripAccents(r.colaborador.toLowerCase()).indexOf(colabQuery) === -1) return false;
@@ -1305,6 +1351,22 @@
     });
   }
 
+  // Filtra as linhas de auditoria de "extra+falta no mesmo dia" (3 meses)
+  // só por gestor/cargo/colaborador — o período filtrado não se aplica
+  // (é sempre o agregado dos últimos meses, não um recorte de datas).
+  function getAuditoriaRecords(){
+    var gestor = $("fGestor").value;
+    var cargo = $("fCargo").value;
+    var colabQuery = stripAccents($("fColab").value.trim().toLowerCase());
+    return state.records.filter(function(r){
+      if (r.tipo !== TIPO_AUDITORIA_EXTRA_FALTA) return false;
+      if (gestor && r.gestor !== gestor) return false;
+      if (cargo && r.cargo !== cargo) return false;
+      if (colabQuery && stripAccents(r.colaborador.toLowerCase()).indexOf(colabQuery) === -1) return false;
+      return true;
+    });
+  }
+
   function countActiveFilters(){
     var n = 0;
     if ($("fGestor").value) n++;
@@ -1312,8 +1374,9 @@
     if ($("fColab").value.trim()) n++;
     if (document.querySelectorAll("#fTipo .chip.active").length) n++;
     if (document.querySelectorAll("#fStatus .chip.active").length) n++;
-    if (state.records.length){
-      var dates = state.records.map(function(r){ return r.data.getTime(); });
+    var recordsParaPeriodo = nonAuditRecords();
+    if (recordsParaPeriodo.length){
+      var dates = recordsParaPeriodo.map(function(r){ return r.data.getTime(); });
       var minISO = toISODate(new Date(Math.min.apply(null, dates)));
       var maxISO = toISODate(new Date(Math.max.apply(null, dates)));
       if ($("fDataIni").value && $("fDataIni").value !== minISO) n++;
@@ -1395,7 +1458,8 @@
     columns.forEach(function(c){ html += "<th>"+escapeHtml(c.label)+"</th>"; });
     html += "</tr></thead><tbody>";
     rows.forEach(function(row){
-      html += "<tr>";
+      var cls = opts.rowClass ? opts.rowClass(row) : "";
+      html += "<tr" + (cls ? ' class="'+escapeHtml(cls)+'"' : "") + ">";
       columns.forEach(function(c){ html += "<td data-label=\""+escapeHtml(c.label)+"\">"+c.render(row)+"</td>"; });
       html += "</tr>";
     });
@@ -1419,8 +1483,12 @@
     renderTableSimple($("tableExtraFalta"),
       [{label:"Colaborador", render:function(r){return escapeHtml(r.colaborador);}},
        {label:"Gestor", render:function(r){return escapeHtml(r.gestor);}},
-       {label:"Dias", width:"56px", render:function(r){return '<strong>'+r.dias+'</strong>';}}],
-      extraEFaltaMesmoDia(records, 10));
+       {label:"Este mês", width:"76px", render:function(r){return r.mesAtual;}},
+       {label:"3 meses (total)", width:"96px", render:function(r){
+          return '<strong>'+r.total3Meses+'</strong>' + (r.auditoria ? ' &#9888;' : '');
+        }}],
+      extraFaltaAuditoria(10),
+      {rowClass:function(r){ return r.auditoria ? "row-alert" : ""; }});
 
     renderTableSimple($("tableCurtas"),
       [{label:"Colaborador", render:function(r){return escapeHtml(r.colaborador);}},

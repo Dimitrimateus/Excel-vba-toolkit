@@ -42,6 +42,8 @@ Colunas esperadas (a ordem das colunas não importa, o que importa é o nome do 
 | `destino_horas_extra` | Não | Só faz sentido quando `duracao_minutos` é positivo. | `Banco de Horas` ou `Pagamento` |
 | `data_tratativa_pontonet` | Não | Data (e hora, se tiver) em que a ocorrência foi tratada/aprovada/regularizada no PontoNet. Usada para calcular a demora. | `25/08/2026 14:30` |
 | `horas_excedentes` | Não | Marca a ocorrência como "hora excedente" (aparece na lista "Relação de horas excedentes"). Qualquer valor preenchido conta como marcado; vazio = não marcado. | `Sim` |
+| `ocorrencias_extra_falta_mes_atual` | Não | Só usada em linhas com `tipo_ocorrencia = Auditoria Extra e Falta (3 Meses)` (uma por colaborador, geradas pela macro): quantos dias de extra+falta no mesmo dia esse colaborador teve no mês atual. | `4` |
+| `ocorrencias_extra_falta_3_meses` | Não | Mesma linha de auditoria acima: soma de dias de extra+falta no mesmo dia nos últimos meses (até 3). A partir de 10, o painel destaca a linha em vermelho na visão "Extra e falta no mesmo dia" (regra da auditoria). | `12` |
 
 `* `Se a coluna não existir ou vier vazia numa linha, o painel usa "Sem gestor" / "Sem setor" / "Sem cargo" / "Não informado" no lugar, mas os gráficos correspondentes perdem o sentido. Vale a pena preencher.
 
@@ -82,6 +84,14 @@ A macro também usa a aba **"Cartão ponto até dia"** (já existe na mesma plan
 - Coluna **"100%"** (coluna U) → hora extra a 100%, sempre reportada em separado (tipo `Hora Extra 100%`) e indicada no card "Total de horas extra" do painel. As colunas "60%" e "120%" não são usadas.
 - Coluna **"Tolerância < 15min"** (coluna AA) → alimenta a visão "Ocorrências curtas": quando uma linha tem `Check = "S"` (que normalmente seria descartada por completo) e essa coluna confirma "Falta < 15min" ou "Extra < 15min", a linha entra no CSV só com esse tipo, sem contar nos totais normais de hora extra/falta.
 
-As colunas "Extras"/"Faltas" da aba Tratamento continuam decidindo só SE aquele dia entra como ocorrência de extra/falta "normal" (é a única fonte usada para "extra e falta no mesmo dia"); a coluna "Pontonet" da Tratamento é ignorada de propósito.
+As colunas "Extras"/"Faltas" da aba Tratamento continuam decidindo só SE aquele dia entra como ocorrência de extra/falta "normal" nas linhas do dia a dia do CSV; a coluna "Pontonet" da Tratamento é ignorada de propósito.
+
+### Auditoria de "extra e falta no mesmo dia" (últimos meses)
+
+A macro procura automaticamente **todas** as abas cujo nome comece com "Cartão ponto" (ex.: "Cartão ponto Julho", "Cartão ponto Agosto", "Cartão ponto Atual" — o nome depois de "Cartão ponto" pode ser qualquer coisa) e usa até as **3 mais recentes** (pela maior data encontrada na coluna "DT" de cada aba, não pelo nome — então não precisa renomear nada de mês a mês, só manter no máximo 3 abas desse tipo na planilha). A aba com a data mais recente é tratada como "mês atual".
+
+Para cada colaborador, a macro conta quantos dias tiveram "Sim" na coluna **"Banco de horas e extra no mesmo dia"** de cada uma dessas abas (esse é o sinal usado tanto para "este mês" quanto para o total dos últimos meses — uma fonte só, consistente entre os períodos) e grava isso numa linha extra no CSV, com `tipo_ocorrencia = Auditoria Extra e Falta (3 Meses)` e as colunas `ocorrencias_extra_falta_mes_atual` / `ocorrencias_extra_falta_3_meses`. Essas linhas não aparecem nos gráficos/KPIs/histórico normais do painel — só alimentam a tabela "Extra e falta no mesmo dia", que mostra as duas colunas lado a lado e destaca em vermelho quem atingiu **10 ou mais ocorrências na soma dos últimos meses** (regra atual da auditoria interna).
+
+Colaboradores que só aparecem numa aba de Cartão Ponto antiga (não estão mais na Tratamento do mês atual) ainda entram nessa auditoria, mas ficam sem gestor preenchido se não tiverem nenhuma linha na Tratamento do período — não há outro lugar na planilha com essa informação para eles.
 
 `GerarCSV.txt` é o mesmo código, salvo em `.txt` (algumas caixas de e-mail/corporativas bloqueiam anexos `.bas` por segurança). Pra usar: importe `GerarCSV.bas` normalmente pelo VBA (Alt+F11 > Arquivo > Importar Arquivo); se só tiver o `.txt`, renomeie a extensão pra `.bas` antes de importar, ou abra um módulo novo em branco no VBA e cole o conteúdo do `.txt` dentro.
