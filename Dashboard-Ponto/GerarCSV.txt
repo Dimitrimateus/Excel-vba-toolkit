@@ -211,22 +211,12 @@ Public Sub GerarAbaCSV()
         End If
 
         If UCase$(checkTxt) = VALOR_CHECK_IGNORAR Then
-            ' Check = "S": não é uma ocorrência real pro RH, mas se o
-            ' Cartão Ponto confirmar que foi uma falta/extra < 15min,
-            ' registra só essa linha (pra alimentar "Ocorrências
-            ' curtas" no painel) e pula o resto do fluxo normal, sem
-            ' contar de novo nos totais de hora extra/falta.
-            If tolerancia15 <> "" Then
-                Dim valorCurta As Double
-                If InStr(1, tolerancia15, "Falta", vbTextCompare) > 0 Then
-                    valorCurta = -Round(minFaltaBHCartao, 0)
-                Else
-                    valorCurta = Round(minExtra50Cartao + minExtra100Cartao, 0)
-                End If
-                EscreverLinhaCSV wsCSV, linhaSaida, dataOcorrencia, nome, matricula, gestor, setorNome, cargoNome, _
-                    tolerancia15, tolerancia15, statusFinal, valorCurta, "", Empty, horasExcedentesTxt
-                linhaSaida = linhaSaida + 1
-            End If
+            ' Check = "S": não é uma ocorrência real pro RH (extra/falta
+            ' normal). "Ocorrências curtas" (<15min) não vêm mais daqui —
+            ' agora são geradas direto da aba de Cartão Ponto do mês atual
+            ' (ver GerarOcorrenciasCurtasDoCartao, chamada após este loop),
+            ' cobrindo todas as linhas com "Tolerância < 15min" preenchida,
+            ' não só as que também têm Check = "S" na Tratamento.
             GoTo ProximaLinha
         End If
 
@@ -360,6 +350,39 @@ ProximaLinha:
         Next matAud
     End If
 
+    ' =====================================================================
+    ' Ocorrências curtas (< 15 minutos), direto da aba de Cartão Ponto do
+    ' mês atual — pedido do RH: usar a coluna "Tolerância < 15min" do
+    ' Cartão Ponto Atual diretamente, cobrindo TODAS as linhas com esse
+    ' sinal (não só as que também batem Check="S" na Tratamento, que é
+    ' um subconjunto menor).
+    ' =====================================================================
+    Dim qtdCurtas As Long
+    qtdCurtas = 0
+    If Not wsCartao Is Nothing Then
+        GerarOcorrenciasCurtasDoCartao wsCartao, dictRE, dictGestorPorMatricula, wsCSV, linhaSaida, qtdCurtas
+    End If
+
+    ' =====================================================================
+    ' Resumo de Pausas Térmicas por colaborador (se a aba existir)
+    ' ---------------------------------------------------------------------
+    ' Usa a seção "Totais por Colaborador" que o macro FormatarPausasTermicas
+    ' já deixa pronta na aba "Pausas térmicas" (uma linha por colaborador,
+    ' com Pausa corretas/menor/maior e Trabalho correto/maior/menor 1:40 e
+    ' Marcações Ímpares) — não recalcula nada, só repassa esses números
+    ' pro CSV, numa linha própria por colaborador.
+    ' =====================================================================
+    Dim qtdResumoPausas As Long
+    qtdResumoPausas = 0
+    Dim wsPausas As Worksheet
+    On Error Resume Next
+    Set wsPausas = wbTrat.Sheets("Pausas térmicas")
+    On Error GoTo 0
+    If Not wsPausas Is Nothing Then
+        GerarResumoPausasTermicas wsPausas, dictRE, dictGestorPorMatricula, wsCSV, linhaSaida, _
+            IIf(Not wsCartao Is Nothing, DataMaximaAba(wsCartao), Date), qtdResumoPausas
+    End If
+
     If Not wbAus Is Nothing Then wbAus.Close SaveChanges:=False
 
     Dim msgAuditoria As String
@@ -369,6 +392,10 @@ ProximaLinha:
     Else
         msgAuditoria = vbCrLf & "Nenhuma aba ""Cartão ponto ..."" encontrada; auditoria de 3 meses não gerada."
     End If
+    msgAuditoria = msgAuditoria & vbCrLf & qtdCurtas & " ocorrência(s) curta(s) (<15min) direto do Cartão Ponto."
+    msgAuditoria = msgAuditoria & vbCrLf & IIf(wsPausas Is Nothing, _
+        "Aba ""Pausas térmicas"" não encontrada; resumo de pausas térmicas não gerado.", _
+        qtdResumoPausas & " colaborador(es) no resumo de Pausas Térmicas.")
 
     MsgBox (linhaSaida - 2) & " linha(s) geradas na aba CSV" & msgAuditoria, vbInformation, "Gerar CSV"
 End Sub
@@ -476,13 +503,13 @@ Private Function DataMaximaAba(ws As Worksheet) As Date
         DataMaximaAba = maxData
         Exit Function
     End If
-    colData = ColunaPorCabecalho(ws, "DT")
+    colData = ColunaPorCabecalho(ws, "DT", 2)
     If colData = 0 Then
         DataMaximaAba = maxData
         Exit Function
     End If
     ultimaLinha = ws.Cells(ws.Rows.Count, colData).End(xlUp).Row
-    For r = 2 To ultimaLinha
+    For r = 3 To ultimaLinha
         dt = ws.Cells(r, colData).Value
         If IsDate(dt) Then
             If CDate(dt) > maxData Then maxData = CDate(dt)
@@ -548,9 +575,9 @@ Private Function ContarExtraFaltaMesmoDia(ws As Worksheet, dictNomes As Object) 
     End If
 
     Dim colMat As Long, colNome As Long, colFlag As Long
-    colMat = ColunaPorCabecalho(ws, "Matrícula")
-    colNome = ColunaPorCabecalho(ws, "Nome")
-    colFlag = ColunaPorCabecalho(ws, "Banco de horas e extra no mesmo dia")
+    colMat = ColunaPorCabecalho(ws, "Matrícula", 2)
+    colNome = ColunaPorCabecalho(ws, "Nome", 2)
+    colFlag = ColunaPorCabecalho(ws, "Banco de horas e extra no mesmo dia", 2)
     If colMat = 0 Or colFlag = 0 Then
         Set ContarExtraFaltaMesmoDia = dict
         Exit Function
@@ -558,7 +585,7 @@ Private Function ContarExtraFaltaMesmoDia(ws As Worksheet, dictNomes As Object) 
 
     Dim ultimaLinha As Long, r As Long, mat As String, flagTxt As String, nome As String
     ultimaLinha = ws.Cells(ws.Rows.Count, colMat).End(xlUp).Row
-    For r = 2 To ultimaLinha
+    For r = 3 To ultimaLinha
         mat = Trim$(CStr(ws.Cells(r, colMat).Value))
         If mat <> "" Then
             flagTxt = LCase$(Trim$(CStr(ws.Cells(r, colFlag).Value)))
@@ -578,11 +605,138 @@ Private Function ContarExtraFaltaMesmoDia(ws As Worksheet, dictNomes As Object) 
     Set ContarExtraFaltaMesmoDia = dict
 End Function
 
-Private Function ColunaPorCabecalho(ws As Worksheet, cabecalho As String) As Long
+' Gera, na aba CSV, uma linha de ocorrência para cada linha da aba de
+' Cartão Ponto do mês atual que tiver a coluna "Tolerância < 15min"
+' preenchida ("Falta < 15min", "Extra < 15min" ou "Extra e Falta <
+' 15min") — direto da fonte, sem depender de Check="S" na Tratamento.
+' Uma linha "Extra e Falta < 15min" gera DUAS linhas no CSV (uma de
+' falta, uma de extra), porque são dois eventos distintos no mesmo dia.
+Private Sub GerarOcorrenciasCurtasDoCartao(ws As Worksheet, dictRE As Object, dictGestorPorMatricula As Object, _
+    wsCSV As Worksheet, ByRef linhaSaida As Long, ByRef qtdGerada As Long)
+
+    Dim colMat As Long, colNome As Long, colData As Long, colBH As Long
+    Dim col50 As Long, col100 As Long, colTolerancia As Long
+    colMat = ColunaPorCabecalho(ws, "Matrícula", 2)
+    colNome = ColunaPorCabecalho(ws, "Nome", 2)
+    colData = ColunaPorCabecalho(ws, "DT", 2)
+    colBH = ColunaPorCabecalho(ws, "BH", 2)
+    col50 = ColunaPorCabecalho(ws, "50%", 2)
+    col100 = ColunaPorCabecalho(ws, "100%", 2)
+    colTolerancia = ColunaPorCabecalho(ws, "Tolerância < 15min", 2)
+    If colMat = 0 Or colData = 0 Or colTolerancia = 0 Then Exit Sub
+
+    Dim ultimaLinha As Long, r As Long
+    ultimaLinha = ws.Cells(ws.Rows.Count, colMat).End(xlUp).Row
+    For r = 3 To ultimaLinha
+        Dim tol As String
+        tol = Trim$(CStr(ws.Cells(r, colTolerancia).Value))
+        If tol = "" Then GoTo ProximaLinhaCurta
+
+        Dim mat As String, dt As Variant, nome As String
+        mat = Trim$(CStr(ws.Cells(r, colMat).Value))
+        dt = ws.Cells(r, colData).Value
+        If mat = "" Or Not IsDate(dt) Then GoTo ProximaLinhaCurta
+
+        nome = IIf(colNome > 0, Trim$(CStr(ws.Cells(r, colNome).Value)), "")
+        If nome = "" Then nome = "Matrícula " & mat
+
+        Dim setorNome As String, cargoNome As String
+        ObterSetorCargo dictRE, mat, setorNome, cargoNome
+
+        Dim gestor As String
+        gestor = ""
+        If dictGestorPorMatricula.Exists(mat) Then gestor = dictGestorPorMatricula(mat)
+
+        Dim minFaltaBH As Double, minExtra As Double
+        minFaltaBH = IIf(colBH > 0, NzNum(ws.Cells(r, colBH).Value), 0) * 24 * 60
+        minExtra = (IIf(col50 > 0, NzNum(ws.Cells(r, col50).Value), 0) _
+                  + IIf(col100 > 0, NzNum(ws.Cells(r, col100).Value), 0)) * 24 * 60
+
+        If InStr(1, tol, "Falta", vbTextCompare) > 0 Then
+            EscreverLinhaCSV wsCSV, linhaSaida, dt, nome, mat, gestor, setorNome, cargoNome, _
+                "Falta < 15min", "Falta < 15min", "Pendente", -Round(minFaltaBH, 0), "", Empty
+            linhaSaida = linhaSaida + 1
+            qtdGerada = qtdGerada + 1
+        End If
+        If InStr(1, tol, "Extra", vbTextCompare) > 0 Then
+            EscreverLinhaCSV wsCSV, linhaSaida, dt, nome, mat, gestor, setorNome, cargoNome, _
+                "Extra < 15min", "Extra < 15min", "Pendente", Round(minExtra, 0), DESTINO_HORA_EXTRA_PADRAO, Empty
+            linhaSaida = linhaSaida + 1
+            qtdGerada = qtdGerada + 1
+        End If
+
+ProximaLinhaCurta:
+    Next r
+End Sub
+
+' Acha a linha de cabeçalho "Matrícula / ... / Pausa corretas / ..." da
+' seção "Totais por Colaborador" que o macro FormatarPausasTermicas
+' deixa pronta na aba "Pausas térmicas" (0 se não achar).
+Private Function LocalizarCabecalhoTotaisPausas(ws As Worksheet) As Long
+    Dim r As Long, ultimaLinha As Long
+    ultimaLinha = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    For r = 1 To ultimaLinha
+        If Trim$(CStr(ws.Cells(r, 1).Value)) = "Matrícula" And _
+           Trim$(CStr(ws.Cells(r, 4).Value)) = "Pausa corretas" Then
+            LocalizarCabecalhoTotaisPausas = r
+            Exit Function
+        End If
+    Next r
+    LocalizarCabecalhoTotaisPausas = 0
+End Function
+
+' Repassa pro CSV, uma linha por colaborador, os números já calculados
+' pelo FormatarPausasTermicas na seção "Totais por Colaborador" da aba
+' "Pausas térmicas" (não recalcula nada, só lê e copia).
+Private Sub GerarResumoPausasTermicas(ws As Worksheet, dictRE As Object, dictGestorPorMatricula As Object, _
+    wsCSV As Worksheet, ByRef linhaSaida As Long, dataRef As Variant, ByRef qtdGerada As Long)
+
+    Dim linhaCabecalho As Long
+    linhaCabecalho = LocalizarCabecalhoTotaisPausas(ws)
+    If linhaCabecalho = 0 Then Exit Sub
+
+    Dim r As Long
+    r = linhaCabecalho + 1
+    Do While Trim$(CStr(ws.Cells(r, 1).Value)) <> ""
+        Dim mat As String, nome As String, cargoPausas As String
+        mat = Trim$(CStr(ws.Cells(r, 1).Value))
+        nome = Trim$(CStr(ws.Cells(r, 2).Value))
+        cargoPausas = Trim$(CStr(ws.Cells(r, 3).Value))
+
+        Dim setorNome As String, cargoRE As String
+        ObterSetorCargo dictRE, mat, setorNome, cargoRE
+        If cargoPausas = "" Then cargoPausas = cargoRE
+
+        Dim gestor As String
+        gestor = ""
+        If dictGestorPorMatricula.Exists(mat) Then gestor = dictGestorPorMatricula(mat)
+
+        EscreverLinhaCSV wsCSV, linhaSaida, dataRef, nome, mat, gestor, setorNome, cargoPausas, _
+            "Resumo Pausas Térmicas", "", "Pendente", 0, "", Empty, _
+            pausaCorretas:=CLng(NzNum(ws.Cells(r, 4).Value)), _
+            pausaMenor20:=CLng(NzNum(ws.Cells(r, 5).Value)), _
+            pausaMaior20:=CLng(NzNum(ws.Cells(r, 6).Value)), _
+            trabalhoCorreto140:=CLng(NzNum(ws.Cells(r, 7).Value)), _
+            trabalhoMaior140:=CLng(NzNum(ws.Cells(r, 8).Value)), _
+            trabalhoMenor140:=CLng(NzNum(ws.Cells(r, 9).Value)), _
+            pausasMarcacoesImpares:=CLng(NzNum(ws.Cells(r, 10).Value))
+        linhaSaida = linhaSaida + 1
+        qtdGerada = qtdGerada + 1
+
+        r = r + 1
+    Loop
+End Sub
+
+' linhaHeader: linha onde está o cabeçalho (1 por padrão). As abas de
+' Cartão Ponto têm o cabeçalho de verdade na LINHA 2 (a linha 1 só tem
+' uns rótulos de grupo esparsos, tipo "Horas extras"), então quem
+' chamar essa função pra uma aba de Cartão Ponto precisa passar
+' linhaHeader:=2.
+Private Function ColunaPorCabecalho(ws As Worksheet, cabecalho As String, Optional linhaHeader As Long = 1) As Long
     Dim ultimaColuna As Long, c As Long
-    ultimaColuna = ws.Cells(1, ws.Columns.Count).End(xlToLeft).Column
+    ultimaColuna = ws.Cells(linhaHeader, ws.Columns.Count).End(xlToLeft).Column
     For c = 1 To ultimaColuna
-        If Trim$(CStr(ws.Cells(1, c).Value)) = cabecalho Then
+        If Trim$(CStr(ws.Cells(linhaHeader, c).Value)) = cabecalho Then
             ColunaPorCabecalho = c
             Exit Function
         End If
@@ -659,12 +813,12 @@ Private Function MontarDicionarioCartao(ws As Worksheet) As Object
 
     Dim colMat As Long, colData As Long, colBH As Long
     Dim col50 As Long, col100 As Long, colTolerancia As Long
-    colMat = ColunaPorCabecalho(ws, "Matricula")
-    colData = ColunaPorCabecalho(ws, "DT")
-    colBH = ColunaPorCabecalho(ws, "BH")
-    col50 = ColunaPorCabecalho(ws, "50%")
-    col100 = ColunaPorCabecalho(ws, "100%")
-    colTolerancia = ColunaPorCabecalho(ws, "Tolerância < 15min")
+    colMat = ColunaPorCabecalho(ws, "Matrícula", 2)
+    colData = ColunaPorCabecalho(ws, "DT", 2)
+    colBH = ColunaPorCabecalho(ws, "BH", 2)
+    col50 = ColunaPorCabecalho(ws, "50%", 2)
+    col100 = ColunaPorCabecalho(ws, "100%", 2)
+    colTolerancia = ColunaPorCabecalho(ws, "Tolerância < 15min", 2)
     If colMat = 0 Or colData = 0 Then
         Set MontarDicionarioCartao = dict
         Exit Function
@@ -675,7 +829,7 @@ Private Function MontarDicionarioCartao(ws As Worksheet) As Object
     Dim bhMin As Double, extra50Min As Double, extra100Min As Double, tolerTxt As String
 
     ultimaLinha = ws.Cells(ws.Rows.Count, colMat).End(xlUp).Row
-    For r = 2 To ultimaLinha
+    For r = 3 To ultimaLinha
         mat = Trim$(CStr(ws.Cells(r, colMat).Value))
         dt = ws.Cells(r, colData).Value
         If mat <> "" And IsDate(dt) Then
@@ -828,7 +982,9 @@ Private Function PrepararAbaCSV(wb As Workbook) As Worksheet
     Dim cabecalhos As Variant, i As Long
     cabecalhos = Array("data", "colaborador", "matricula", "gestor", "setor", "cargo", "tipo_ocorrencia", _
                         "situacao", "status", "duracao_minutos", "destino_horas_extra", "data_tratativa_pontonet", _
-                        "horas_excedentes", "ocorrencias_extra_falta_mes_atual", "ocorrencias_extra_falta_3_meses")
+                        "horas_excedentes", "ocorrencias_extra_falta_mes_atual", "ocorrencias_extra_falta_3_meses", _
+                        "pausas_corretas", "pausas_menor_20min", "pausas_maior_20min", "trabalho_correto_140", _
+                        "trabalho_maior_140", "trabalho_menor_140", "pausas_marcacoes_impares")
     For i = LBound(cabecalhos) To UBound(cabecalhos)
         ws.Cells(1, i + 1).Value = cabecalhos(i)
     Next i
@@ -837,12 +993,19 @@ Private Function PrepararAbaCSV(wb As Workbook) As Worksheet
     Set PrepararAbaCSV = ws
 End Function
 
-' Ordem das colunas tem que casar com PrepararAbaCSV.
+' Ordem das colunas tem que casar com PrepararAbaCSV. Os parâmetros
+' opcionais no fim só são preenchidos nas linhas especiais (auditoria de
+' extra+falta e resumo de pausas térmicas, uma linha por colaborador);
+' nas linhas normais de ocorrência ficam em branco. Use argumentos
+' nomeados (ex.: pausaCorretas:=5) pra pular os que não interessam.
 Private Sub EscreverLinhaCSV(ws As Worksheet, linha As Long, dataOcorrencia As Variant, nome As String, _
     matricula As String, gestor As String, setorNome As String, cargoNome As String, tipoOcorrencia As String, _
     situacaoTxt As String, statusTxt As String, duracaoMinutos As Double, destinoExtra As String, tratativa As Variant, _
     Optional horasExcedentes As String = "", Optional extraFaltaMesAtual As Variant = Empty, _
-    Optional extraFaltaTotal3Meses As Variant = Empty)
+    Optional extraFaltaTotal3Meses As Variant = Empty, Optional pausaCorretas As Variant = Empty, _
+    Optional pausaMenor20 As Variant = Empty, Optional pausaMaior20 As Variant = Empty, _
+    Optional trabalhoCorreto140 As Variant = Empty, Optional trabalhoMaior140 As Variant = Empty, _
+    Optional trabalhoMenor140 As Variant = Empty, Optional pausasMarcacoesImpares As Variant = Empty)
 
     ws.Cells(linha, 1).Value = CDate(dataOcorrencia)
     ws.Cells(linha, 2).Value = nome
@@ -863,6 +1026,13 @@ Private Sub EscreverLinhaCSV(ws As Worksheet, linha As Long, dataOcorrencia As V
     ws.Cells(linha, 13).Value = horasExcedentes
     If Not IsEmpty(extraFaltaMesAtual) Then ws.Cells(linha, 14).Value = extraFaltaMesAtual
     If Not IsEmpty(extraFaltaTotal3Meses) Then ws.Cells(linha, 15).Value = extraFaltaTotal3Meses
+    If Not IsEmpty(pausaCorretas) Then ws.Cells(linha, 16).Value = pausaCorretas
+    If Not IsEmpty(pausaMenor20) Then ws.Cells(linha, 17).Value = pausaMenor20
+    If Not IsEmpty(pausaMaior20) Then ws.Cells(linha, 18).Value = pausaMaior20
+    If Not IsEmpty(trabalhoCorreto140) Then ws.Cells(linha, 19).Value = trabalhoCorreto140
+    If Not IsEmpty(trabalhoMaior140) Then ws.Cells(linha, 20).Value = trabalhoMaior140
+    If Not IsEmpty(trabalhoMenor140) Then ws.Cells(linha, 21).Value = trabalhoMenor140
+    If Not IsEmpty(pausasMarcacoesImpares) Then ws.Cells(linha, 22).Value = pausasMarcacoesImpares
 End Sub
 
 Private Function EscolherPasta() As String

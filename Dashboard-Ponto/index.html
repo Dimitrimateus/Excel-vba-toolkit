@@ -533,6 +533,15 @@
           </div>
         </section>
 
+        <h3 class="section-title">Pausas Térmicas</h3>
+        <section class="grid">
+          <div class="card wide">
+            <div class="card-title">Resumo por colaborador</div>
+            <div class="card-hint">Pausas e intervalos de trabalho classificados no relatório de Pausas Térmicas do mês atual &middot; linhas em vermelho têm marcações inválidas registradas</div>
+            <div class="card-body" id="tablePausasTermicas"></div>
+          </div>
+        </section>
+
         <h3 class="section-title">Demora de tratativa no PontoNet</h3>
         <section class="grid">
           <div class="card wide">
@@ -693,11 +702,24 @@
     tratativa: ["data_tratativa_pontonet","tratativa_pontonet","data_tratativa","data_regularizacao","data_aprovacao"],
     horasExcedentes: ["horas_excedentes","horas_excedente","horaexcedente","excedente"],
     extraFaltaMesAtual: ["ocorrencias_extra_falta_mes_atual","extra_falta_mes_atual"],
-    extraFaltaTotal3Meses: ["ocorrencias_extra_falta_3_meses","extra_falta_3_meses","extra_falta_total_3_meses"]
+    extraFaltaTotal3Meses: ["ocorrencias_extra_falta_3_meses","extra_falta_3_meses","extra_falta_total_3_meses"],
+    pausaCorretas: ["pausas_corretas","pausa_corretas"],
+    pausaMenor20: ["pausas_menor_20min","pausa_menor_20min"],
+    pausaMaior20: ["pausas_maior_20min","pausa_maior_20min"],
+    trabalhoCorreto140: ["trabalho_correto_140"],
+    trabalhoMaior140: ["trabalho_maior_140"],
+    trabalhoMenor140: ["trabalho_menor_140"],
+    pausasMarcacoesImpares: ["pausas_marcacoes_impares","pausa_marcacoes_impares"]
   };
 
   var TIPO_AUDITORIA_EXTRA_FALTA = "Auditoria Extra e Falta (3 Meses)";
   var LIMITE_AUDITORIA_EXTRA_FALTA = 10;
+  var TIPO_RESUMO_PAUSAS_TERMICAS = "Resumo Pausas Térmicas";
+  // tipos que são "linhas-resumo" por colaborador (não ocorrências
+  // datadas de verdade) — ficam de fora dos gráficos/KPIs/histórico
+  // gerais e só alimentam suas próprias vistas dedicadas.
+  var TIPOS_RESUMO = [TIPO_AUDITORIA_EXTRA_FALTA, TIPO_RESUMO_PAUSAS_TERMICAS];
+  function isTipoResumo(tipo){ return TIPOS_RESUMO.indexOf(tipo) !== -1; }
 
   var state = {
     records: [],
@@ -868,7 +890,14 @@
         tratativa: tratativaRaw ? parseDate(tratativaRaw) : null,
         horasExcedentes: idx.horasExcedentes != null && /^(sim|s|true|1|x)$/i.test((r[idx.horasExcedentes]||"").trim()),
         extraFaltaMesAtual: idx.extraFaltaMesAtual != null ? parseNumber(r[idx.extraFaltaMesAtual]) : 0,
-        extraFaltaTotal3Meses: idx.extraFaltaTotal3Meses != null ? parseNumber(r[idx.extraFaltaTotal3Meses]) : 0
+        extraFaltaTotal3Meses: idx.extraFaltaTotal3Meses != null ? parseNumber(r[idx.extraFaltaTotal3Meses]) : 0,
+        pausaCorretas: idx.pausaCorretas != null ? parseNumber(r[idx.pausaCorretas]) : 0,
+        pausaMenor20: idx.pausaMenor20 != null ? parseNumber(r[idx.pausaMenor20]) : 0,
+        pausaMaior20: idx.pausaMaior20 != null ? parseNumber(r[idx.pausaMaior20]) : 0,
+        trabalhoCorreto140: idx.trabalhoCorreto140 != null ? parseNumber(r[idx.trabalhoCorreto140]) : 0,
+        trabalhoMaior140: idx.trabalhoMaior140 != null ? parseNumber(r[idx.trabalhoMaior140]) : 0,
+        trabalhoMenor140: idx.trabalhoMenor140 != null ? parseNumber(r[idx.trabalhoMenor140]) : 0,
+        pausasMarcacoesImpares: idx.pausasMarcacoesImpares != null ? parseNumber(r[idx.pausasMarcacoesImpares]) : 0
       };
       out.push(rec);
     }
@@ -1205,6 +1234,29 @@
     resultado.forEach(function(r){ r.auditoria = r.total3Meses >= LIMITE_AUDITORIA_EXTRA_FALTA; });
     return resultado.sort(function(a,b){ return b.total3Meses - a.total3Meses || b.mesAtual - a.mesAtual; }).slice(0, n);
   }
+  // Resumo de Pausas Térmicas por colaborador (linhas geradas pelo
+  // GerarCSV a partir da aba "Pausas térmicas" já formatada). Lista
+  // todos os colaboradores (não só um top N), ordenados com quem tem
+  // marcações inválidas ou pausas curtas primeiro.
+  function pausasTermicasResumo(){
+    return getPausasTermicasRecords().map(function(r){
+      return {
+        colaborador: r.colaborador,
+        cargo: r.cargo,
+        pausaCorretas: r.pausaCorretas || 0,
+        pausaMenor20: r.pausaMenor20 || 0,
+        pausaMaior20: r.pausaMaior20 || 0,
+        trabalhoCorreto140: r.trabalhoCorreto140 || 0,
+        trabalhoMaior140: r.trabalhoMaior140 || 0,
+        trabalhoMenor140: r.trabalhoMenor140 || 0,
+        pausasMarcacoesImpares: r.pausasMarcacoesImpares || 0
+      };
+    }).sort(function(a,b){
+      return b.pausasMarcacoesImpares - a.pausasMarcacoesImpares ||
+             b.pausaMenor20 - a.pausaMenor20 ||
+             a.colaborador.localeCompare(b.colaborador, "pt-BR");
+    });
+  }
   function curtaDuracao(records, n){
     var perColab = {};
     records.forEach(function(r){
@@ -1255,7 +1307,7 @@
      5. FILTROS
   ========================================================= */
   function nonAuditRecords(){
-    return state.records.filter(function(r){ return r.tipo !== TIPO_AUDITORIA_EXTRA_FALTA; });
+    return state.records.filter(function(r){ return !isTipoResumo(r.tipo); });
   }
   function uniqueSorted(records, keyFn){
     var set = {};
@@ -1266,7 +1318,7 @@
   function populateFilterOptions(){
     var gestores = uniqueSorted(state.records, function(r){ return r.gestor; });
     var cargos = uniqueSorted(state.records, function(r){ return r.cargo; });
-    var tipos = uniqueSorted(state.records.filter(function(r){ return r.tipo !== TIPO_AUDITORIA_EXTRA_FALTA; }), function(r){ return r.tipo; });
+    var tipos = uniqueSorted(state.records.filter(function(r){ return !isTipoResumo(r.tipo); }), function(r){ return r.tipo; });
     var statuses = uniqueSorted(state.records, function(r){ return r.status; });
     var colaboradores = uniqueSorted(state.records, function(r){ return r.colaborador; });
 
@@ -1336,10 +1388,10 @@
     var dFim = $("fDataFim").value ? new Date($("fDataFim").value+"T23:59:59") : null;
 
     return state.records.filter(function(r){
-      // linhas de auditoria (3 meses) não são ocorrências do período: têm
-      // sua própria vista dedicada (extraFaltaAuditoria), não entram nos
-      // gráficos/KPIs/histórico gerais.
-      if (r.tipo === TIPO_AUDITORIA_EXTRA_FALTA) return false;
+      // linhas-resumo (auditoria de 3 meses, resumo de pausas térmicas)
+      // não são ocorrências do período: têm suas próprias vistas
+      // dedicadas, não entram nos gráficos/KPIs/histórico gerais.
+      if (isTipoResumo(r.tipo)) return false;
       if (gestor && r.gestor !== gestor) return false;
       if (cargo && r.cargo !== cargo) return false;
       if (colabQuery && stripAccents(r.colaborador.toLowerCase()).indexOf(colabQuery) === -1) return false;
@@ -1351,21 +1403,24 @@
     });
   }
 
-  // Filtra as linhas de auditoria de "extra+falta no mesmo dia" (3 meses)
-  // só por gestor/cargo/colaborador — o período filtrado não se aplica
-  // (é sempre o agregado dos últimos meses, não um recorte de datas).
-  function getAuditoriaRecords(){
+  // Filtra linhas-resumo por colaborador (auditoria de extra+falta ou
+  // resumo de pausas térmicas) só por gestor/cargo/colaborador — o
+  // período filtrado não se aplica (são sempre agregados de vários
+  // meses, não um recorte de datas).
+  function getResumoRecords(tipo){
     var gestor = $("fGestor").value;
     var cargo = $("fCargo").value;
     var colabQuery = stripAccents($("fColab").value.trim().toLowerCase());
     return state.records.filter(function(r){
-      if (r.tipo !== TIPO_AUDITORIA_EXTRA_FALTA) return false;
+      if (r.tipo !== tipo) return false;
       if (gestor && r.gestor !== gestor) return false;
       if (cargo && r.cargo !== cargo) return false;
       if (colabQuery && stripAccents(r.colaborador.toLowerCase()).indexOf(colabQuery) === -1) return false;
       return true;
     });
   }
+  function getAuditoriaRecords(){ return getResumoRecords(TIPO_AUDITORIA_EXTRA_FALTA); }
+  function getPausasTermicasRecords(){ return getResumoRecords(TIPO_RESUMO_PAUSAS_TERMICAS); }
 
   function countActiveFilters(){
     var n = 0;
@@ -1506,6 +1561,18 @@
        {label:"Tipo", width:"140px", render:function(r){return escapeHtml(r.tipo);}},
        {label:"Situação", render:function(r){return escapeHtml(r.situacao);}}],
       relacaoHorasExcedentes(records));
+
+    renderTableSimple($("tablePausasTermicas"),
+      [{label:"Colaborador", render:function(r){return escapeHtml(r.colaborador);}},
+       {label:"Cargo", render:function(r){return escapeHtml(r.cargo);}},
+       {label:"Pausa correta", width:"84px", render:function(r){return r.pausaCorretas;}},
+       {label:"Pausa curta (<0:20)", width:"96px", render:function(r){return r.pausaMenor20;}},
+       {label:"Trabalho correto", width:"96px", render:function(r){return r.trabalhoCorreto140;}},
+       {label:"Trabalho longo (>1:40)", width:"104px", render:function(r){return r.trabalhoMaior140;}},
+       {label:"Trabalho curto (<1:40)", width:"104px", render:function(r){return r.trabalhoMenor140;}},
+       {label:"Marcações inválidas", width:"104px", render:function(r){return r.pausasMarcacoesImpares;}}],
+      pausasTermicasResumo(),
+      {rowClass:function(r){ return r.pausasMarcacoesImpares > 0 ? "row-alert" : ""; }});
 
     renderTableSimple($("tableDemoraGestor"),
       [{label:"Gestor", render:function(r){return escapeHtml(r.label);}},
