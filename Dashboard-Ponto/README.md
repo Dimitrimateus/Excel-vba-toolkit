@@ -41,7 +41,7 @@ Colunas esperadas (a ordem das colunas não importa, o que importa é o nome do 
 | `duracao_minutos` | Não | Duração em minutos, **com sinal**: negativo para falta/atraso, positivo para hora extra. | `-30` (30 min de atraso), `120` (2h de hora extra) |
 | `destino_horas_extra` | Não | Só faz sentido quando `duracao_minutos` é positivo. | `Banco de Horas` ou `Pagamento` |
 | `data_tratativa_pontonet` | Não | Data (e hora, se tiver) em que a ocorrência foi tratada/aprovada/regularizada no PontoNet. Usada para calcular a demora. | `25/08/2026 14:30` |
-| `horas_excedentes` | Não | Marca a ocorrência como "hora excedente" (aparece na lista "Relação de horas excedentes"). Qualquer valor preenchido conta como marcado; vazio = não marcado. | `Sim` |
+| `horas_excedentes` | Não | Marca a ocorrência como "hora excedente". O painel não tem mais uma visão dedicada pra isso (removida a pedido), mas a coluna continua sendo gerada pela macro caso volte a ser usada. | `Sim` |
 | `ocorrencias_extra_falta_mes_atual` | Não | Só usada em linhas com `tipo_ocorrencia = Auditoria Extra e Falta (3 Meses)` (uma por colaborador, geradas pela macro): quantos dias de extra+falta no mesmo dia esse colaborador teve no mês atual. | `4` |
 | `ocorrencias_extra_falta_3_meses` | Não | Mesma linha de auditoria acima: soma de dias de extra+falta no mesmo dia nos últimos meses (até 3). A partir de 10, o painel destaca a linha em vermelho na visão "Extra e falta no mesmo dia" (regra da auditoria). | `12` |
 | `pausas_corretas`, `pausas_menor_20min`, `pausas_maior_20min`, `trabalho_correto_140`, `trabalho_maior_140`, `trabalho_menor_140`, `pausas_marcacoes_impares` | Não | Só usadas em linhas com `tipo_ocorrencia = Resumo Pausas Térmicas` (uma por colaborador, geradas pela macro a partir da aba "Pausas térmicas"): os mesmos números da seção "Totais por Colaborador" desse relatório, repassados sem recálculo. Alimentam a visão "Pausas Térmicas — Resumo por colaborador". | `19`, `0`, `0`, `13`, `2`, `17`, `0` |
@@ -92,6 +92,8 @@ As colunas "Extras"/"Faltas" da aba Tratamento continuam decidindo só SE aquele
 
 Antes, essa visão só pegava linhas que tinham `Check = "S"` na Tratamento **e** confirmação na coluna "Tolerância < 15min" do Cartão Ponto — um subconjunto pequeno. Agora a macro varre a coluna **"Tolerância < 15min"** da aba de Cartão Ponto do mês atual direto, sem depender da Tratamento: toda linha com essa coluna preenchida ("Falta < 15min", "Extra < 15min" ou "Extra e Falta < 15min") vira uma ou duas linhas no CSV (uma de falta, uma de extra, quando for "e"), usando as colunas "BH"/"50%"/"100%" da própria linha do Cartão Ponto como duração.
 
+No painel, `Falta < 15min` e `Extra < 15min` não contam como ocorrência normal em nenhum outro lugar (KPIs, gráficos "Ocorrências por...", histórico, filtro de Tipo) — só alimentam o card "Ocorrências curtas" (que continua respeitando os filtros de gestor/cargo/colaborador/período).
+
 ### Auditoria de "extra e falta no mesmo dia" (últimos meses)
 
 A macro procura automaticamente **todas** as abas cujo nome comece com "Cartão ponto" (ex.: "Cartão ponto Julho", "Cartão ponto Agosto", "Cartão ponto Atual" — o nome depois de "Cartão ponto" pode ser qualquer coisa) e usa até as **3 mais recentes** (pela maior data encontrada na coluna "DT" de cada aba, não pelo nome — então não precisa renomear nada de mês a mês, só manter no máximo 3 abas desse tipo na planilha). A aba com a data mais recente é tratada como "mês atual".
@@ -103,5 +105,7 @@ Colaboradores que só aparecem numa aba de Cartão Ponto antiga (não estão mai
 ### Resumo de Pausas Térmicas
 
 Se a planilha tiver uma aba chamada **"Pausas térmicas"** já formatada pelo macro `FormatarPausasTermicas.bas` (ver `Pausas-Termicas/` no repositório), o `GerarAbaCSV` lê a seção "Totais por Colaborador" dessa aba (não recalcula nada, só repassa os números) e gera uma linha por colaborador no CSV, com `tipo_ocorrencia = Resumo Pausas Térmicas`. O painel mostra isso na seção "Pausas Térmicas — Resumo por colaborador": pausas corretas/curtas, trabalho correto/longo/curto entre pausas e marcações inválidas, com a linha em vermelho para quem tem marcação inválida. Se a aba não existir, essa seção simplesmente fica vazia — não trava o resto do CSV.
+
+No painel, esse card vem **recolhido por padrão** (é um `<details>` que expande ao clicar no título), pra não ocupar espaço com uma tabela de dezenas de colaboradores antes de você pedir pra ver.
 
 `GerarCSV.txt` é o mesmo código, salvo em `.txt` (algumas caixas de e-mail/corporativas bloqueiam anexos `.bas` por segurança). Pra usar: importe `GerarCSV.bas` normalmente pelo VBA (Alt+F11 > Arquivo > Importar Arquivo); se só tiver o `.txt`, renomeie a extensão pra `.bas` antes de importar, ou abra um módulo novo em branco no VBA e cole o conteúdo do `.txt` dentro.

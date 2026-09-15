@@ -234,6 +234,19 @@
   .card-hint{ font-size:11px; color:var(--c-muted-2); margin-bottom:10px; }
   .card-body{ min-height:40px; overflow:hidden; }
 
+  .card-details-summary{
+    display:flex; align-items:center; gap:8px; cursor:pointer; list-style:none;
+  }
+  .card-details-summary::-webkit-details-marker{ display:none; }
+  .card-details-summary::marker{ content:""; }
+  .card-details-summary .card-title{ margin-bottom:0; }
+  .card-details-chevron{
+    width:16px; height:16px; margin-left:auto; color:var(--c-muted); transition:transform .15s; flex:none;
+  }
+  details.card-details[open] .card-details-chevron{ transform:rotate(180deg); }
+  details.card-details .card-hint{ margin-top:2px; }
+  details.card-details .card-body{ margin-top:10px; }
+
   .chart-empty{ font-size:12.5px; color:var(--c-muted-2); padding:30px 10px; text-align:center; }
 
   svg.chart-svg{ width:100%; height:auto; display:block; overflow:visible; font-family:var(--font-sans); }
@@ -524,22 +537,18 @@
           </div>
         </section>
 
-        <h3 class="section-title">Horas excedentes</h3>
-        <section class="grid">
-          <div class="card wide">
-            <div class="card-title">Relação de horas excedentes</div>
-            <div class="card-hint">Ocorrências marcadas como "Horas Excedentes" na aba Tratamento</div>
-            <div class="card-body" id="tableHorasExcedentes"></div>
-          </div>
-        </section>
-
         <h3 class="section-title">Pausas Térmicas</h3>
         <section class="grid">
-          <div class="card wide">
-            <div class="card-title">Resumo por colaborador</div>
-            <div class="card-hint">Pausas e intervalos de trabalho classificados no relatório de Pausas Térmicas do mês atual &middot; linhas em vermelho têm marcações inválidas registradas</div>
+          <details class="card wide card-details">
+            <summary class="card-details-summary">
+              <div>
+                <div class="card-title">Resumo por colaborador</div>
+                <div class="card-hint">Pausas e intervalos de trabalho classificados no relatório de Pausas Térmicas do mês atual &middot; linhas em vermelho têm marcações inválidas registradas</div>
+              </div>
+              <svg class="card-details-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7l5 6 5-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </summary>
             <div class="card-body" id="tablePausasTermicas"></div>
-          </div>
+          </details>
         </section>
 
         <h3 class="section-title">Demora de tratativa no PontoNet</h3>
@@ -720,6 +729,12 @@
   // gerais e só alimentam suas próprias vistas dedicadas.
   var TIPOS_RESUMO = [TIPO_AUDITORIA_EXTRA_FALTA, TIPO_RESUMO_PAUSAS_TERMICAS];
   function isTipoResumo(tipo){ return TIPOS_RESUMO.indexOf(tipo) !== -1; }
+
+  // "Falta < 15min" / "Extra < 15min": não contam como ocorrência normal
+  // em nenhum outro lugar do painel (KPIs, gráficos, histórico) — servem
+  // só para alimentar a contagem do card "Ocorrências curtas".
+  var TIPOS_CURTAS = ["Falta < 15min", "Extra < 15min"];
+  function isTipoCurta(tipo){ return TIPOS_CURTAS.indexOf(tipo) !== -1; }
 
   var state = {
     records: [],
@@ -985,11 +1000,12 @@
     var H = topPad*2 + items.length*(rowH+gap) - gap + 20;
     var svg = svgEl("svg", { viewBox: "0 0 " + W + " " + H, class:"chart-svg" });
     var plotW = W - leftW - rightW;
-    // legend
+    // legend — banco de horas em vermelho, pagamento (extra) em verde
+    var COR_BANCO = "#E31E24", COR_EXTRA = "#2E8B45";
     var legendY = 10;
-    svg.appendChild(svgEl("rect", { x:leftW, y:0, width:10, height:10, fill: "#FFC72C" }));
+    svg.appendChild(svgEl("rect", { x:leftW, y:0, width:10, height:10, fill: COR_BANCO }));
     var t1 = svgEl("text", { x:leftW+14, y:9, class:"axis-label" }); t1.textContent = "Banco de horas"; svg.appendChild(t1);
-    svg.appendChild(svgEl("rect", { x:leftW+110, y:0, width:10, height:10, fill: "#F7931E" }));
+    svg.appendChild(svgEl("rect", { x:leftW+110, y:0, width:10, height:10, fill: COR_EXTRA }));
     var t2 = svgEl("text", { x:leftW+124, y:9, class:"axis-label" }); t2.textContent = "Pagamento"; svg.appendChild(t2);
 
     items.forEach(function(it, idx){
@@ -1000,8 +1016,8 @@
       label.textContent = truncate(it.label, 15);
       svg.appendChild(label);
       svg.appendChild(svgEl("rect", { x:leftW, y:y, width:plotW, height:rowH, class:"chart-track", rx:3 }));
-      if (it.a > 0) svg.appendChild(svgEl("rect", { x:leftW, y:y, width:Math.max(wa,it.a?2:0), height:rowH, fill: "#FFC72C", rx:3, "data-tooltip": it.label + " · Banco de horas: " + formatHoras(it.a) }));
-      if (it.b > 0) svg.appendChild(svgEl("rect", { x:leftW+wa, y:y, width:Math.max(wb,it.b?2:0), height:rowH, fill: "#F7931E", rx:3, "data-tooltip": it.label + " · Pagamento: " + formatHoras(it.b) }));
+      if (it.a > 0) svg.appendChild(svgEl("rect", { x:leftW, y:y, width:Math.max(wa,it.a?2:0), height:rowH, fill: COR_BANCO, rx:3, "data-tooltip": it.label + " · Banco de horas: " + formatHoras(it.a) }));
+      if (it.b > 0) svg.appendChild(svgEl("rect", { x:leftW+wa, y:y, width:Math.max(wb,it.b?2:0), height:rowH, fill: COR_EXTRA, rx:3, "data-tooltip": it.label + " · Pagamento: " + formatHoras(it.b) }));
       var val = svgEl("text", { x: leftW + Math.max(wa+wb, 4) + 8, y: y+rowH/2+4, class:"chart-value" });
       val.textContent = formatHoras(it.a+it.b);
       svg.appendChild(val);
@@ -1283,10 +1299,6 @@
     var top = Object.values(perColab).sort(function(x,y){ return (y.a+y.b)-(x.a+x.b); }).slice(0,n);
     return { totals:totals, top:top };
   }
-  function relacaoHorasExcedentes(records){
-    return records.filter(function(r){ return r.horasExcedentes; })
-      .slice().sort(function(a,b){ return b.data.getTime()-a.data.getTime(); });
-  }
   function demoraStats(records, keyFn){
     var groups = {};
     records.forEach(function(r){
@@ -1306,8 +1318,11 @@
   /* =========================================================
      5. FILTROS
   ========================================================= */
-  function nonAuditRecords(){
-    return state.records.filter(function(r){ return !isTipoResumo(r.tipo); });
+  // Registros "normais" pro cálculo de período/datas: sem as
+  // linhas-resumo (auditoria, pausas térmicas) nem as ocorrências
+  // curtas (que só alimentam o card próprio delas).
+  function recordsGerais(){
+    return state.records.filter(function(r){ return !isTipoResumo(r.tipo) && !isTipoCurta(r.tipo); });
   }
   function uniqueSorted(records, keyFn){
     var set = {};
@@ -1318,7 +1333,7 @@
   function populateFilterOptions(){
     var gestores = uniqueSorted(state.records, function(r){ return r.gestor; });
     var cargos = uniqueSorted(state.records, function(r){ return r.cargo; });
-    var tipos = uniqueSorted(state.records.filter(function(r){ return !isTipoResumo(r.tipo); }), function(r){ return r.tipo; });
+    var tipos = uniqueSorted(state.records.filter(function(r){ return !isTipoResumo(r.tipo) && !isTipoCurta(r.tipo); }), function(r){ return r.tipo; });
     var statuses = uniqueSorted(state.records, function(r){ return r.status; });
     var colaboradores = uniqueSorted(state.records, function(r){ return r.colaborador; });
 
@@ -1357,7 +1372,7 @@
 
     // pré-preenche o período com o intervalo total dos dados (sem contar
     // as linhas de auditoria de 3 meses, que não são ocorrências datadas)
-    var recordsParaPeriodo = nonAuditRecords();
+    var recordsParaPeriodo = recordsGerais();
     if (recordsParaPeriodo.length){
       var dates = recordsParaPeriodo.map(function(r){ return r.data.getTime(); });
       var minD = new Date(Math.min.apply(null, dates));
@@ -1388,10 +1403,11 @@
     var dFim = $("fDataFim").value ? new Date($("fDataFim").value+"T23:59:59") : null;
 
     return state.records.filter(function(r){
-      // linhas-resumo (auditoria de 3 meses, resumo de pausas térmicas)
-      // não são ocorrências do período: têm suas próprias vistas
-      // dedicadas, não entram nos gráficos/KPIs/histórico gerais.
-      if (isTipoResumo(r.tipo)) return false;
+      // linhas-resumo (auditoria de 3 meses, resumo de pausas térmicas) e
+      // ocorrências curtas (<15min) não contam como ocorrência normal:
+      // têm suas próprias vistas dedicadas, não entram nos
+      // gráficos/KPIs/histórico gerais.
+      if (isTipoResumo(r.tipo) || isTipoCurta(r.tipo)) return false;
       if (gestor && r.gestor !== gestor) return false;
       if (cargo && r.cargo !== cargo) return false;
       if (colabQuery && stripAccents(r.colaborador.toLowerCase()).indexOf(colabQuery) === -1) return false;
@@ -1422,6 +1438,26 @@
   function getAuditoriaRecords(){ return getResumoRecords(TIPO_AUDITORIA_EXTRA_FALTA); }
   function getPausasTermicasRecords(){ return getResumoRecords(TIPO_RESUMO_PAUSAS_TERMICAS); }
 
+  // Ocorrências curtas: respeitam os mesmos filtros de gestor/cargo/
+  // colaborador/período que o resto do painel (diferente das
+  // linhas-resumo acima, que são agregados fora do recorte de datas).
+  function getCurtasRecords(){
+    var gestor = $("fGestor").value;
+    var cargo = $("fCargo").value;
+    var colabQuery = stripAccents($("fColab").value.trim().toLowerCase());
+    var dIni = $("fDataIni").value ? new Date($("fDataIni").value+"T00:00:00") : null;
+    var dFim = $("fDataFim").value ? new Date($("fDataFim").value+"T23:59:59") : null;
+    return state.records.filter(function(r){
+      if (!isTipoCurta(r.tipo)) return false;
+      if (gestor && r.gestor !== gestor) return false;
+      if (cargo && r.cargo !== cargo) return false;
+      if (colabQuery && stripAccents(r.colaborador.toLowerCase()).indexOf(colabQuery) === -1) return false;
+      if (dIni && r.data < dIni) return false;
+      if (dFim && r.data > dFim) return false;
+      return true;
+    });
+  }
+
   function countActiveFilters(){
     var n = 0;
     if ($("fGestor").value) n++;
@@ -1429,7 +1465,7 @@
     if ($("fColab").value.trim()) n++;
     if (document.querySelectorAll("#fTipo .chip.active").length) n++;
     if (document.querySelectorAll("#fStatus .chip.active").length) n++;
-    var recordsParaPeriodo = nonAuditRecords();
+    var recordsParaPeriodo = recordsGerais();
     if (recordsParaPeriodo.length){
       var dates = recordsParaPeriodo.map(function(r){ return r.data.getTime(); });
       var minISO = toISODate(new Date(Math.min.apply(null, dates)));
@@ -1549,18 +1585,10 @@
       [{label:"Colaborador", render:function(r){return escapeHtml(r.colaborador);}},
        {label:"Ocorrências", width:"90px", render:function(r){return r.qtd;}},
        {label:"Minutos", width:"76px", render:function(r){return formatNum(r.minutos);}}],
-      curtaDuracao(records, 10));
+      curtaDuracao(getCurtasRecords(), 10));
 
     var banco = bancoDeHorasEExtra(records, 10);
     renderStackedH($("chartBancoHoras"), banco.top);
-
-    renderTableSimple($("tableHorasExcedentes"),
-      [{label:"Data", width:"90px", render:function(r){return formatDateBR(r.data);}},
-       {label:"Colaborador", render:function(r){return escapeHtml(r.colaborador);}},
-       {label:"Gestor", render:function(r){return escapeHtml(r.gestor);}},
-       {label:"Tipo", width:"140px", render:function(r){return escapeHtml(r.tipo);}},
-       {label:"Situação", render:function(r){return escapeHtml(r.situacao);}}],
-      relacaoHorasExcedentes(records));
 
     renderTableSimple($("tablePausasTermicas"),
       [{label:"Colaborador", render:function(r){return escapeHtml(r.colaborador);}},
