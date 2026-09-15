@@ -234,19 +234,6 @@
   .card-hint{ font-size:11px; color:var(--c-muted-2); margin-bottom:10px; }
   .card-body{ min-height:40px; overflow:hidden; }
 
-  .card-details-summary{
-    display:flex; align-items:center; gap:8px; cursor:pointer; list-style:none;
-  }
-  .card-details-summary::-webkit-details-marker{ display:none; }
-  .card-details-summary::marker{ content:""; }
-  .card-details-summary .card-title{ margin-bottom:0; }
-  .card-details-chevron{
-    width:16px; height:16px; margin-left:auto; color:var(--c-muted); transition:transform .15s; flex:none;
-  }
-  details.card-details[open] .card-details-chevron{ transform:rotate(180deg); }
-  details.card-details .card-hint{ margin-top:2px; }
-  details.card-details .card-body{ margin-top:10px; }
-
   .chart-empty{ font-size:12.5px; color:var(--c-muted-2); padding:30px 10px; text-align:center; }
 
   svg.chart-svg{ width:100%; height:auto; display:block; overflow:visible; font-family:var(--font-sans); }
@@ -316,6 +303,44 @@
     background:var(--c-navy-dark); color:#FFFFFF; font-size:12px;
     padding:6px 10px; border-radius:6px; max-width:240px; line-height:1.35;
     box-shadow:0 4px 14px rgba(0,0,0,.22);
+  }
+
+  /* ---------- Modal (Pausas Térmicas) ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; z-index:300;
+    background:rgba(26,26,26,.55);
+    display:flex; align-items:center; justify-content:center;
+    padding:24px;
+  }
+  .modal-overlay[hidden]{ display:none; }
+  .modal-panel{
+    background:var(--c-card); border-radius:var(--radius-panel);
+    width:min(1400px, 96vw); max-height:88vh;
+    display:flex; flex-direction:column;
+    box-shadow:0 20px 60px rgba(0,0,0,.35);
+  }
+  .modal-header{
+    display:flex; align-items:flex-start; gap:12px;
+    padding:18px 20px 14px; border-bottom:1px solid var(--c-line);
+  }
+  .modal-title{ font-size:16px; color:var(--c-navy-dark); margin:0 0 4px; }
+  .modal-hint{ font-size:12px; color:var(--c-muted-2); line-height:1.4; }
+  .modal-close{
+    flex:none; background:transparent; border:none; cursor:pointer;
+    font-size:24px; line-height:1; color:var(--c-muted); padding:4px 8px;
+    min-width:36px; min-height:36px;
+  }
+  .modal-close:hover{ color:var(--c-navy-dark); }
+  .modal-body{ padding:16px 20px 20px; overflow:auto; }
+  .modal-body .table-scroll{ max-height:none; }
+  /* dentro do modal há espaço de sobra: mostra o cabeçalho da coluna
+     por inteiro, quebrando linha em vez de cortar com "..." */
+  .modal-body table.data-table th{
+    white-space:normal; overflow:visible; text-overflow:clip; line-height:1.3;
+  }
+  @media (max-width: 620px){
+    .modal-overlay{ padding:0; }
+    .modal-panel{ width:100%; height:100%; max-height:100%; border-radius:0; }
   }
 
   /* ---------- Orientation banner ---------- */
@@ -539,16 +564,11 @@
 
         <h3 class="section-title">Pausas Térmicas</h3>
         <section class="grid">
-          <details class="card wide card-details">
-            <summary class="card-details-summary">
-              <div>
-                <div class="card-title">Resumo por colaborador</div>
-                <div class="card-hint">Pausas e intervalos de trabalho classificados no relatório de Pausas Térmicas do mês atual &middot; linhas em vermelho têm marcações inválidas registradas</div>
-              </div>
-              <svg class="card-details-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7l5 6 5-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </summary>
-            <div class="card-body" id="tablePausasTermicas"></div>
-          </details>
+          <div class="card wide">
+            <div class="card-title">Resumo por colaborador</div>
+            <div class="card-hint">Pausas e intervalos de trabalho classificados no relatório de Pausas Térmicas do mês atual &middot; linhas em vermelho têm marcações inválidas registradas</div>
+            <button class="btn" id="btnAbrirPausas" type="button">Abrir resumo completo</button>
+          </div>
         </section>
 
         <h3 class="section-title">Demora de tratativa no PontoNet</h3>
@@ -684,6 +704,19 @@
   </nav>
 
   <div id="chartTooltip" hidden></div>
+
+  <div class="modal-overlay" id="pausasModalOverlay" hidden>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="pausasModalTitle">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="pausasModalTitle">Pausas Térmicas — Resumo por colaborador</h2>
+          <div class="modal-hint">Pausas e intervalos de trabalho classificados no relatório de Pausas Térmicas do mês atual &middot; linhas em vermelho têm marcações inválidas registradas</div>
+        </div>
+        <button class="modal-close" id="pausasModalClose" type="button" aria-label="Fechar">&times;</button>
+      </div>
+      <div class="modal-body" id="tablePausasTermicas"></div>
+    </div>
+  </div>
 
 <script>
 (function(){
@@ -1604,22 +1637,21 @@
 
     renderTableSimple($("tableCurtas"),
       [{label:"Colaborador", render:function(r){return escapeHtml(r.colaborador);}},
-       {label:"Ocorrências", width:"90px", render:function(r){return r.qtd;}},
-       {label:"Minutos", width:"76px", render:function(r){return formatNum(r.minutos);}}],
+       {label:"Ocorrências", width:"90px", render:function(r){return r.qtd;}}],
       curtaDuracao(getCurtasRecords(), 10));
 
     var banco = bancoDeHorasEExtra(records, 10);
     renderStackedH($("chartBancoHoras"), banco.top);
 
     renderTableSimple($("tablePausasTermicas"),
-      [{label:"Colaborador", render:function(r){return escapeHtml(r.colaborador);}},
-       {label:"Cargo", render:function(r){return escapeHtml(r.cargo);}},
-       {label:"Pausa correta", width:"84px", render:function(r){return r.pausaCorretas;}},
-       {label:"Pausa curta (<0:20)", width:"96px", render:function(r){return r.pausaMenor20;}},
-       {label:"Trabalho correto", width:"96px", render:function(r){return r.trabalhoCorreto140;}},
-       {label:"Trabalho longo (>1:40)", width:"104px", render:function(r){return r.trabalhoMaior140;}},
-       {label:"Trabalho curto (<1:40)", width:"104px", render:function(r){return r.trabalhoMenor140;}},
-       {label:"Marcações inválidas", width:"104px", render:function(r){return r.pausasMarcacoesImpares;}}],
+      [{label:"Colaborador", width:"210px", render:function(r){return escapeHtml(r.colaborador);}},
+       {label:"Cargo", width:"210px", render:function(r){return escapeHtml(r.cargo);}},
+       {label:"Pausa correta", width:"130px", render:function(r){return r.pausaCorretas;}},
+       {label:"Pausa curta (<0:20)", width:"150px", render:function(r){return r.pausaMenor20;}},
+       {label:"Trabalho correto", width:"140px", render:function(r){return r.trabalhoCorreto140;}},
+       {label:"Trabalho longo (>1:40)", width:"160px", render:function(r){return r.trabalhoMaior140;}},
+       {label:"Trabalho curto (<1:40)", width:"160px", render:function(r){return r.trabalhoMenor140;}},
+       {label:"Marcações inválidas", width:"160px", render:function(r){return r.pausasMarcacoesImpares;}}],
       pausasTermicasResumo(),
       {rowClass:function(r){ return r.pausasMarcacoesImpares > 0 ? "row-alert" : ""; }});
 
@@ -1834,6 +1866,23 @@
   $("orientationBannerClose").addEventListener("click", function(){
     orientationDismissed = true;
     $("orientationBanner").classList.add("dismissed");
+  });
+
+  function abrirModalPausas(){
+    $("pausasModalOverlay").hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+  function fecharModalPausas(){
+    $("pausasModalOverlay").hidden = true;
+    document.body.style.overflow = "";
+  }
+  $("btnAbrirPausas").addEventListener("click", abrirModalPausas);
+  $("pausasModalClose").addEventListener("click", fecharModalPausas);
+  $("pausasModalOverlay").addEventListener("click", function(e){
+    if (e.target === $("pausasModalOverlay")) fecharModalPausas();
+  });
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape" && !$("pausasModalOverlay").hidden) fecharModalPausas();
   });
 
   window.addEventListener("resize", debounce(function(){
