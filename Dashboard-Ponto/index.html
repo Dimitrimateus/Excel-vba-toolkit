@@ -732,6 +732,87 @@
 <script>
 (function(){
   "use strict";
+  /* =========================================================
+     PAINEL DE PONTO — VISÃO GERAL DO ARQUIVO
+     =========================================================
+     O QUE É: um dashboard de RH que lê, 100% no navegador (sem
+     backend, sem build step, sem npm — um único index.html que roda
+     abrindo o arquivo direto), o CSV gerado pelo macro GerarCSV.bas
+     (pasta Dashboard-Ponto/GerarCSV.bas) a partir da planilha de
+     ocorrências de ponto da Aurora Coop, e mostra KPIs, gráficos e
+     tabelas de auditoria pra RH e gestores.
+
+     POR QUE NADA DE SERVIDOR/BUILD: o arquivo CSV tem nome, matrícula
+     e ausência de colaboradores reais — rodar tudo client-side (sem
+     upload nenhum) significa que esse dado nunca sai da máquina de
+     quem abriu o painel. Isso também explica por que não há nenhuma
+     lib de gráfico (Chart.js etc.): trazer uma dependência externa
+     exigiria um CDN (falha sem internet) ou colar a lib inteira
+     inline — os gráficos SVG são desenhados à mão (seção 3).
+
+     FLUXO DE DADOS, de ponta a ponta:
+       1. Usuário arrasta/seleciona o CSV -> handleFile (seção 8) lê o
+          arquivo com FileReader.
+       2. recordsFromCSV (seção 2) faz parsing linha a linha e devolve
+          um array de "records" (um objeto por linha do CSV, com os
+          campos já tipados: datas viram Date, números viram Number).
+          Isso vira state.records — a ÚNICA fonte de verdade dos dados
+          carregados; nada mais no código guarda uma cópia própria dos
+          dados brutos.
+       3. Os controles de filtro (gestor/cargo/colaborador/tipo/status/
+          período, todo o HTML dentro de #filtersBlock) disparam
+          applyFilters -> renderDashboard (seção 6) a cada mudança.
+       4. renderDashboard lê o filtro atual do próprio DOM via
+          getFilteredRecords/getResumoRecords/getCurtasRecords (seção
+          5) — cada uma devolve um subconjunto diferente de
+          state.records, porque nem toda "linha" do CSV é uma
+          ocorrência normal (ver TIPOS_RESUMO/TIPOS_CURTAS/
+          TIPOS_HORA_EXTRA logo abaixo) — e passa esses subconjuntos
+          pras funções de agregação (seção 4), que devolvem números já
+          prontos pra desenhar.
+       5. Os números agregados viram tela via as funções render* da
+          seção 3 (gráficos SVG) e seção 6 (tabelas/KPIs).
+       Nada é cacheado entre filtros: toda mudança de filtro refaz o
+       pipeline 4->5 inteiro a partir de state.records. Pra um CSV de
+       um mês de ponto (milhares de linhas, não milhões), isso é rápido
+       o bastante pra não precisar de memoização.
+
+     POR QUE "TIPO DE OCORRÊNCIA" NÃO É SÓ UM CAMPO SIMPLES: o CSV do
+     macro mistura, na mesma coluna tipo_ocorrencia, três categorias
+     bem diferentes de linha:
+       - Ocorrências normais e datadas (Falta, Hora Extra, etc.) — o
+         que a palavra "ocorrência" normalmente quer dizer no painel.
+       - Linhas-RESUMO por colaborador (auditoria de 3 meses, resumo de
+         pausas térmicas) — não são eventos de um dia específico, são
+         agregados que o próprio macro já calculou; teriam que ser
+         excluídas de qualquer soma "por dia"/"por período" pra não
+         contar dado duas vezes.
+       - Ocorrências CURTAS (<15min) e HORA EXTRA — contam pra alguns
+         KPIs (horas) mas não pra outros (contagem de ocorrências,
+         pedido do próprio RH).
+       As funções isTipoResumo/isTipoCurta/isTipoHoraExtra/
+       isTipoNaoOcorrencia, logo abaixo, existem exatamente pra
+       centralizar essa classificação — qualquer código novo que
+       precisar decidir "isso conta como ocorrência aqui?" deve
+       reusá-las em vez de comparar string de tipo na mão.
+
+     MAPA DAS SEÇÕES (busque pelo número/título pra navegar):
+       0. Constantes e paleta — cores, aliases de cabeçalho do CSV,
+          classificação de tipo de linha (resumo/curta/hora-extra),
+          state global.
+       1. Helpers gerais — formatação de número/data/hora, cor por
+          categoria, funções puras sem estado.
+       2. Parser de CSV — texto bruto -> array de records.
+       3. Renderização de gráficos SVG — sem libs externas.
+       4. Agregações — records filtrados -> dados prontos pra gráfico.
+       5. Filtros — leem os controles do DOM e filtram state.records.
+       6. Renderização geral do dashboard — o maestro (renderDashboard)
+          e as tabelas/KPIs simples.
+       7. Histórico — a única tabela com busca/ordenação/paginação
+          própria.
+       8. Carregamento de arquivo e eventos — entrada de dados.
+       9. Responsivo — orientação de tela, resize, modal, barra mobile.
+  ========================================================= */
 
   /* =========================================================
      0. CONSTANTES E PALETA
@@ -740,6 +821,12 @@
   var DIAS_LABELS = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
   var DIAS_ORDER  = [1,2,3,4,5,6,0]; // getDay(): 0=Dom..6=Sáb
 
+  // Nome interno do campo -> lista de nomes de coluna aceitos no CSV
+  // (normalizados: sem acento, minúsculo, espaço vira "_" — ver
+  // normalizeHeader/buildColumnIndex, seção 2). O primeiro nome de cada
+  // lista é o que o GerarCSV.bas realmente escreve hoje (ver o array
+  // `cabecalhos` em PrepararAbaCSV); os demais são sinônimos aceitos
+  // pra tolerar CSVs de versões antigas do macro ou montados à mão.
   var HEADER_ALIASES = {
     data:      ["data","data_ocorrencia","dt_ocorrencia"],
     colaborador: ["colaborador","funcionario","nome","colaborador_nome"],
@@ -794,6 +881,16 @@
     return isTipoResumo(tipo) || isTipoCurta(tipo) || isTipoHoraExtra(tipo);
   }
 
+  // Estado global do painel inteiro — de propósito, um único objeto
+  // mutável em vez de várias variáveis soltas, pra deixar claro que
+  // isto é TUDO que precisa ser resetado/trocado quando um novo
+  // arquivo é carregado (ver handleFile e o handler de "resetBtn",
+  // seção 8). records: os dados carregados (a fonte de verdade — os
+  // filtros nunca modificam isto, só leem). colorMaps: cache de
+  // "categoria -> cor já atribuída" (ver colorFor abaixo), reiniciado a
+  // cada arquivo pra não misturar cores de um arquivo anterior.
+  // historySort/historyPage/historyPageSize: estado de UI só da tabela
+  // de Histórico (seção 7), que é a única com paginação própria.
   var state = {
     records: [],
     colorMaps: { gestor:{}, setor:{}, cargo:{}, tipo:{}, status:{} },
@@ -806,6 +903,12 @@
      1. HELPERS GERAIS
   ========================================================= */
   function $(id){ return document.getElementById(id); }
+  // Escapa os 5 caracteres perigosos de HTML antes de qualquer dado do
+  // CSV (nome de colaborador, gestor, situação etc.) ser inserido via
+  // innerHTML — sem isso, um nome ou justificativa contendo "<script>"
+  // ou aspas quebraria o HTML ou abriria um XSS. Todo lugar que monta
+  // HTML com texto vindo de `records` (tabelas, chips, legendas) precisa
+  // passar o valor por aqui primeiro.
   function escapeHtml(s){
     return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
       return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];
@@ -839,6 +942,14 @@
     str = String(str||"");
     return str.length > n ? str.slice(0,n-1)+"…" : str;
   }
+  // Atribui uma cor da PALETTE a cada valor distinto de uma "dimensão"
+  // (gestor, setor, cargo, tipo ou status) na ordem em que aparecem,
+  // e lembra a atribuição em state.colorMaps — assim o mesmo gestor
+  // sempre aparece com a mesma cor em TODOS os gráficos do painel numa
+  // mesma sessão (comparação visual entre gráficos fica consistente),
+  // não uma cor diferente sorteada por gráfico. As cores dão a volta
+  // (% PALETTE.length) se houver mais valores distintos que cores na
+  // paleta.
   function colorFor(dim, key){
     var map = state.colorMaps[dim];
     if (!map[key]){
@@ -857,7 +968,18 @@
 
   /* =========================================================
      2. PARSER DE CSV (sem dependências externas)
+     O arquivo que entra aqui vem do macro GerarCSV.bas (ver
+     Dashboard-Ponto/GerarCSV.bas), mas o parser não assume isso: aceita
+     vírgula ou ponto-e-vírgula como delimitador, datas em dd/mm/aaaa ou
+     aaaa-mm-dd, números em pt-BR (1.234,56) ou en-US (1234.56), e
+     cabeçalhos com nomes alternativos (ver HEADER_ALIASES acima) —
+     assim um CSV exportado manualmente do Excel também funciona, não só
+     o gerado pelo macro.
   ========================================================= */
+  // Sem vírgula nem ; presentes no cabeçalho, assume vírgula (o padrão
+  // do macro). Olha só a 1ª linha porque o delimitador é fixo pro
+  // arquivo inteiro — não precisa (nem faria sentido) checar linha a
+  // linha.
   function detectDelimiter(text){
     var firstLine = text.split(/\r\n|\n/,1)[0] || "";
     var commas = (firstLine.match(/,/g)||[]).length;
@@ -865,6 +987,11 @@
     return semis > commas ? ";" : ",";
   }
 
+  // Parser CSV char-a-char (RFC 4180: campo entre aspas pode conter o
+  // delimitador, quebra de linha ou aspas duplicadas ""). Não dá pra
+  // usar String.split(delim) ingênuo porque um campo como situação/
+  // justificativa pode ter vírgulas dentro das aspas. \r é ignorado
+  // porque \n (sozinho ou depois de \r) já fecha a linha.
   function parseCSV(text, delim){
     if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
     var rows = [], row = [], field = "", inQuotes = false;
@@ -887,6 +1014,12 @@
     return rows.filter(function(r){ return !(r.length===1 && r[0].trim()==="") ; });
   }
 
+  // Converte texto solto (pt-BR "1.234,56", en-US "1234.56", negativo
+  // com "(123)" tipo relatório contábil) em number. Remove tudo que não
+  // for dígito/vírgula/ponto/sinal primeiro (limpa símbolo de moeda,
+  // espaço etc.), depois decide qual de , ou . é o separador decimal
+  // pela posição do último caractere — o que vier por último é o
+  // decimal, o outro é separador de milhar e é descartado.
   function parseNumber(raw){
     if (raw == null) return 0;
     var s = String(raw).trim();
@@ -905,6 +1038,12 @@
     return n;
   }
 
+  // Aceita aaaa-mm-dd (o que o TextoCelula do macro geraria se alguém
+  // mudasse o formato) e dd/mm/aaaa (o formato real que o macro escreve
+  // — ver TextoCelula em GerarCSV.bas), ambos com hora opcional. Cai
+  // pro construtor nativo Date() como último recurso (aceita ISO com
+  // "T", por exemplo) pra não recusar um CSV editado à mão. null = data
+  // não reconhecida; recordsFromCSV descarta a linha inteira nesse caso.
   function parseDate(str){
     if (!str) return null;
     str = String(str).trim();
@@ -917,6 +1056,12 @@
     return isNaN(d.getTime()) ? null : d;
   }
 
+  // Casa o cabeçalho real do CSV (linha 1) com os nomes de campo internos
+  // usados no resto do código (HEADER_ALIASES), pra aceitar variações de
+  // nome de coluna sem quebrar. normalizeHeader tira acento/maiúscula/
+  // espaço extra antes de comparar, então "Matrícula" e "matricula"
+  // casam igual. Primeira sinônimo que bater vence (a ordem dentro de
+  // cada array em HEADER_ALIASES importa).
   function buildColumnIndex(headerRow){
     var normalized = headerRow.map(normalizeHeader);
     var idx = {};
@@ -930,6 +1075,16 @@
     return idx;
   }
 
+  // Ponto de entrada do parsing: texto bruto do arquivo -> array de
+  // objetos "record" (a estrutura que o resto do painel inteiro
+  // consome). "data" e "colaborador" são as únicas colunas realmente
+  // obrigatórias — sem elas não dá pra desenhar nada (nem período, nem
+  // agrupar por pessoa), então a função retorna erro cedo. Toda coluna
+  // opcional ausente vira valor default sensato ("Sem gestor", 0, "")
+  // em vez de undefined, pra não espalhar checagem de undefined pelo
+  // resto do código. Linha sem colaborador ou com data não reconhecível
+  // é silenciosamente descartada (não é um CSV do macro, ou está
+  // corrompida).
   function recordsFromCSV(text){
     var delim = detectDelimiter(text);
     var rows = parseCSV(text, delim);
@@ -979,19 +1134,39 @@
 
   /* =========================================================
      3. RENDERIZAÇÃO DE GRÁFICOS SVG (sem libs externas)
+     Sem Chart.js/D3/etc — o painel roda de um único arquivo HTML aberto
+     direto no navegador, sem servidor nem bundler, então toda
+     dependência externa teria que vir de um CDN (falha se o RH abrir
+     offline) ou ser colada inline (mais peso pra manter). Cada
+     render* recebe um <div> container, limpa o conteúdo anterior
+     (container.innerHTML = "") e monta um novo <svg> do zero — os
+     gráficos não são atualizados incrementalmente, são redesenhados
+     inteiros a cada renderDashboard() (ver seção 6). viewBox fixo +
+     containerWidth() é o que faz o SVG escalar pra largura real do
+     card sem JS extra de resize (o navegador escala o viewBox
+     sozinho via CSS width:100%).
   ========================================================= */
   var SVG_NS = "http://www.w3.org/2000/svg";
+  // Atalho pra criar elemento SVG (namespace obrigatório — document.
+  // createElement comum não funciona pra tags SVG) já com atributos.
   function svgEl(tag, attrs){
     var el = document.createElementNS(SVG_NS, tag);
     if (attrs) for (var k in attrs) el.setAttribute(k, attrs[k]);
     return el;
   }
+  // Placeholder textual quando o filtro atual zera os dados de um
+  // gráfico — evita mostrar um SVG vazio/quebrado sem explicação.
   function emptyMsg(text){
     var div = document.createElement("div");
     div.className = "chart-empty";
     div.textContent = text || "Sem dados para este filtro.";
     return div;
   }
+  // Arredonda o valor máximo do eixo pra um número "redondo" (1/2/5 x
+  // uma potência de 10 — ex.: 47 -> 50, 340 -> 500) em vez do máximo
+  // exato dos dados. Sem isso as linhas de grade do eixo Y (ver
+  // renderBarV/renderLine) teriam rótulos tipo "23,5" em vez de "25",
+  // que fica estranho pra um painel de RH.
   function niceMax(v){
     if (v <= 0) return 1;
     var mag = Math.pow(10, Math.floor(Math.log10(v)));
@@ -999,10 +1174,18 @@
     if (norm <= 1) n = 1; else if (norm <= 2) n = 2; else if (norm <= 5) n = 5; else n = 10;
     return n * mag;
   }
+  // Largura real do card em pixels (pro viewBox do SVG bater com o
+  // espaço disponível na tela); cai pro fallback antes do 1º layout
+  // (clientWidth ainda 0) ou se o container ficou oculto (display:none
+  // também dá clientWidth 0). Mínimo de 240 evita um SVG praticamente
+  // colapsado em telas muito estreitas.
   function containerWidth(container, fallback){
     var w = container && container.clientWidth;
     return Math.max(240, Math.round(w) || fallback);
   }
+  // Liga o tooltip customizado (ver showTooltip/hideTooltip) em todo
+  // elemento do SVG marcado com data-tooltip — SVG não tem title nativo
+  // com o mesmo controle visual, então o painel implementa o próprio.
   function wireTooltips(svg){
     var els = svg.querySelectorAll("[data-tooltip]");
     els.forEach(function(el){
@@ -1010,6 +1193,10 @@
       el.addEventListener("mouseleave", hideTooltip);
     });
   }
+  // Posiciona o balão de tooltip perto do cursor, mas empurra pra
+  // esquerda se ia estourar a borda direita da janela (só checa a
+  // direita porque o balão nasce à direita/abaixo do cursor por
+  // padrão — nunca estoura embaixo o suficiente pra justificar checar).
   function showTooltip(e, text){
     var tip = $("chartTooltip");
     tip.textContent = text;
@@ -1021,6 +1208,12 @@
   }
   function hideTooltip(){ $("chartTooltip").hidden = true; }
 
+  // Barras horizontais (usado nos rankings tipo "Ocorrências por
+  // gestor/setor/cargo" e "Colaboradores com mais ocorrências") — itens
+  // empilhados de cima pra baixo, um por linha, largura proporcional ao
+  // valor. Horizontal em vez de vertical porque os rótulos (nomes de
+  // gestor/colaborador) costumam ser longos demais pra caber embaixo
+  // de uma barra vertical sem virar de lado.
   function renderBarH(container, items, opts){
     opts = opts || {};
     container.innerHTML = "";
@@ -1048,6 +1241,11 @@
     wireTooltips(svg);
   }
 
+  // Igual a renderBarH, mas cada barra é dividida em 2 segmentos (it.a
+  // = banco de horas, it.b = pagamento) — usado só no gráfico "Banco
+  // de horas e hora extra por colaborador", que precisa mostrar as duas
+  // naturezas de hora extra lado a lado na mesma barra, não em barras
+  // separadas.
   function renderStackedH(container, items, opts){
     opts = opts || {};
     container.innerHTML = "";
@@ -1084,6 +1282,9 @@
     wireTooltips(svg);
   }
 
+  // Barras verticais com eixo Y (linhas de grade em 0/50%/100% do
+  // máximo) — usado onde os rótulos são curtos e fixos (dias da semana,
+  // status), que cabem embaixo da barra sem truncar.
   function renderBarV(container, items, opts){
     opts = opts || {};
     container.innerHTML = "";
@@ -1117,7 +1318,14 @@
     wireTooltips(svg);
   }
 
+  // Ponto num círculo de raio r e centro (cx,cy) no ângulo dado (radianos).
   function polar(cx,cy,r,angle){ return [cx + r*Math.cos(angle), cy + r*Math.sin(angle)]; }
+  // Desenha o "path" SVG de uma fatia de rosquinha entre os ângulos a0
+  // e a1: arco externo (rOuter) de p0 até p1, linha reta até o arco
+  // interno (rInner), arco interno de volta, fecha o polígono. "large"
+  // decide qual dos dois arcos possíveis o SVG desenha (o maior ou o
+  // menor que os mesmos 2 pontos permitem) — necessário sempre que a
+  // fatia passa de 180°.
   function donutSegmentPath(cx,cy,rInner,rOuter,a0,a1){
     var large = (a1-a0) > Math.PI ? 1 : 0;
     var p0 = polar(cx,cy,rOuter,a0), p1 = polar(cx,cy,rOuter,a1);
@@ -1125,6 +1333,12 @@
     return "M "+p0[0]+" "+p0[1]+" A "+rOuter+" "+rOuter+" 0 "+large+" 1 "+p1[0]+" "+p1[1]+
            " L "+p2[0]+" "+p2[1]+" A "+rInner+" "+rInner+" 0 "+large+" 0 "+p3[0]+" "+p3[1]+" Z";
   }
+  // Gráfico de rosquinha com legenda ao lado (usado pra distribuições
+  // tipo "Ocorrências por status/tipo"). Caso especial pra 1 item só:
+  // desenhar um "arco" de 360° com donutSegmentPath dá um path
+  // degenerado (a0==a1 depois de dar a volta completa), então um item
+  // único vira um círculo cheio simples em vez de passar pelo cálculo
+  // de ângulos.
   function renderDonut(container, items){
     container.innerHTML = "";
     var total = items.reduce(function(s,i){ return s+i.value; }, 0);
@@ -1166,6 +1380,9 @@
     container.appendChild(legend);
   }
 
+  // Gráfico de linha com área preenchida embaixo — usado só pro
+  // histórico de ocorrências ao longo do tempo (eixo X = dias/meses,
+  // ver seção 6/7). Mesmo esquema de eixo Y "nice" que renderBarV.
   function renderLine(container, points){
     container.innerHTML = "";
     if (!points.length){ container.appendChild(emptyMsg()); return; }
@@ -1236,7 +1453,17 @@
 
   /* =========================================================
      4. AGREGAÇÕES
+     Transformam a lista de records (já filtrada por getFilteredRecords
+     — ver seção 5) no formato { label, value, color } que os
+     render* da seção 3 esperam. Cada função aqui corresponde a
+     exatamente um gráfico/tabela do dashboard (renderDashboard, seção
+     6, é quem decide qual conjunto de records passar pra cada uma).
+     A maioria segue o mesmo padrão: countBy pra contar ocorrências por
+     alguma chave (tipo, gestor, cargo...), ordena do maior pro menor,
+     e opcionalmente corta em um top N.
   ========================================================= */
+  // Conta quantos records caem em cada valor de keyFn(record) — o
+  // bloco básico reaproveitado por quase toda função abaixo.
   function countBy(records, keyFn){
     var map = {};
     records.forEach(function(r){
@@ -1281,6 +1508,11 @@
     return Object.keys(map).sort(function(a,b){ return map[b]-map[a]; }).slice(0,n)
       .map(function(k){ return { label:k, value:map[k], color:"var(--c-orange)" }; });
   }
+  // Fallback do navegador quando o CSV não tem as linhas de auditoria
+  // do macro (ver extraFaltaAuditoria abaixo): agrupa por colaborador+
+  // dia, marca hasNeg/hasPos conforme aparecem durações negativas
+  // (falta) e positivas (extra) nesse mesmo grupo, e só conta como
+  // "extra e falta no mesmo dia" quando os dois aparecerem juntos.
   function extraEFaltaMesmoDia(records, n){
     var groups = {};
     records.forEach(function(r){
@@ -1349,6 +1581,12 @@
              a.colaborador.localeCompare(b.colaborador, "pt-BR");
     });
   }
+  // Ocorrências com duração absoluta menor que 15 minutos, agrupadas
+  // por colaborador — visão complementar ao card "Ocorrências curtas"
+  // (que usa getCurtasRecords, tipos "Falta < 15min"/"Extra < 15min"
+  // vindos prontos do macro); esta aqui deriva do campo duracao_minutos
+  // de qualquer ocorrência normal, então cobre casos que o macro não
+  // classificou como curtos mas que, na prática, duraram pouco.
   function curtaDuracao(records, n){
     var perColab = {};
     records.forEach(function(r){
@@ -1360,6 +1598,10 @@
     });
     return Object.values(perColab).sort(function(a,b){ return b.qtd-a.qtd || b.minutos-a.minutos; }).slice(0,n);
   }
+  // Duração positiva (hora extra) só, dividida entre "banco de horas"
+  // (destino_horas_extra contém "banco") e "pagamento" (qualquer outro
+  // destino) — alimenta tanto os totais dos KPIs quanto o gráfico
+  // empilhado renderStackedH (seção 3) via o campo "top".
   function bancoDeHorasEExtra(records, n){
     var totals = { banco:0, pagamento:0 };
     var perColab = {};
@@ -1375,6 +1617,12 @@
     var top = Object.values(perColab).sort(function(x,y){ return (y.a+y.b)-(x.a+x.b); }).slice(0,n);
     return { totals:totals, top:top };
   }
+  // Tempo entre a ocorrência (r.data) e a tratativa do gestor no
+  // PontoNet (r.tratativa), em horas, agrupado por keyFn (gestor ou
+  // colaborador conforme a tabela que chama). Ignora registros sem
+  // tratativa (ainda pendente) e descarta horas negativas (dado
+  // inconsistente — tratativa registrada antes da ocorrência não faz
+  // sentido e distorceria a média).
   function demoraStats(records, keyFn){
     var groups = {};
     records.forEach(function(r){
@@ -1400,12 +1648,25 @@
   function recordsGerais(){
     return state.records.filter(function(r){ return !isTipoNaoOcorrencia(r.tipo); });
   }
+  // Valores distintos de keyFn(record) em ordem alfabética pt-BR
+  // (localeCompare com locale "pt-BR" ordena "Á" junto de "A", não
+  // depois de "Z" como faria uma comparação de string ingênua) — usado
+  // pra popular os <select>/<datalist> dos filtros.
   function uniqueSorted(records, keyFn){
     var set = {};
     records.forEach(function(r){ set[keyFn(r)] = true; });
     return Object.keys(set).sort(function(a,b){ return a.localeCompare(b,"pt-BR"); });
   }
 
+  // Chamada uma vez por arquivo carregado (ver handleFile, seção 8):
+  // preenche as opções dos filtros (gestor, cargo, colaborador, tipo,
+  // status) a partir do CSV inteiro (state.records), não do filtrado —
+  // as opções disponíveis num filtro não devem encolher conforme
+  // outros filtros são aplicados, senão o usuário não consegue "voltar"
+  // pra uma opção que um filtro anterior escondeu. "tipo" é a única
+  // lista que já nasce sem as linhas-resumo/curtas/hora-extra
+  // (isTipoNaoOcorrencia) — não faria sentido oferecer "Resumo Pausas
+  // Térmicas" como opção no filtro de tipo de ocorrência.
   function populateFilterOptions(){
     var gestores = uniqueSorted(state.records, function(r){ return r.gestor; });
     var cargos = uniqueSorted(state.records, function(r){ return r.cargo; });
@@ -1461,12 +1722,23 @@
     return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
   }
 
+  // Os filtros de Tipo e Status são "chips" clicáveis (multi-seleção),
+  // não um <select> — junta os que estão .active num set pra checagem
+  // O(1) em getFilteredRecords.
   function activeChipValues(container){
     var set = {};
     container.querySelectorAll(".chip.active").forEach(function(c){ set[c.dataset.value] = true; });
     return set;
   }
 
+  // O filtro "principal": aplicado nos KPIs, gráficos e histórico
+  // gerais. Lê os controles de filtro direto do DOM (não guarda o
+  // estado deles em `state` — os próprios <input>/<select>/chips SÃO o
+  // estado) e cai fora linhas-resumo e ocorrências curtas de cara,
+  // porque essas nunca fazem parte da vista "geral" (têm suas próprias
+  // funções dedicadas, getResumoRecords/getCurtasRecords, logo abaixo).
+  // "tipoSet vazio" e "statusSet vazio" significam "nenhum chip
+  // marcado" = sem filtro nesse eixo (mostra tudo), não "esconde tudo".
   function getFilteredRecords(){
     var gestor = $("fGestor").value;
     var cargo = $("fCargo").value;
@@ -1534,6 +1806,13 @@
     });
   }
 
+  // Quantos filtros estão "ativos" (diferentes do estado inicial) —
+  // usado só pra mostrar/esconder o badge numérico no botão de filtros.
+  // O período conta como ativo apenas se o usuário mudou a data pra
+  // fora do intervalo total dos dados (min/max reais) — o período
+  // vem pré-preenchido com esse intervalo total (ver populateFilterOptions),
+  // então "sem alterar o período" não deveria contar como um filtro
+  // aplicado pelo usuário.
   function countActiveFilters(){
     var n = 0;
     if ($("fGestor").value) n++;
@@ -1557,6 +1836,13 @@
     if (n > 0){ badge.textContent = n; badge.hidden = false; }
     else { badge.hidden = true; }
   }
+  // Marca (via classe CSS has-overflow) as tabelas cuja largura de
+  // conteúdo excede o espaço visível, pra mostrar uma dica visual de
+  // "role pra ver mais colunas" (relevante na faixa tablet 769-980px,
+  // onde a tabela rola na horizontal em vez de virar cards — ver seção
+  // 9/CSS). Chamado depois de um setTimeout(…,0) em renderDashboard
+  // porque scrollWidth só fica correto depois que o navegador terminou
+  // de fazer layout do HTML recém-inserido.
   function updateScrollHints(){
     document.querySelectorAll(".table-scroll").forEach(function(el){
       if (el.scrollWidth > el.clientWidth + 2) el.classList.add("has-overflow");
@@ -1566,6 +1852,15 @@
 
   /* =========================================================
      6. RENDERIZAÇÃO GERAL DO DASHBOARD
+     renderDashboard() é o maestro: toda vez que um filtro muda
+     (applyFilters, disparado pelos listeners dos controles de filtro)
+     ou um arquivo novo é carregado (handleFile, seção 8), é essa
+     função que é chamada — ela decide que subconjunto de records cada
+     gráfico/tabela/KPI recebe e delega pra função de aggregação
+     (seção 4) + render (seção 3) correspondente. Nada aqui guarda
+     estado próprio: cada chamada recalcula tudo do zero a partir de
+     getFilteredRecords()/state.records, então a UI nunca fica
+     dessincronizada do filtro atual.
   ========================================================= */
   // records: usado pras horas (extra/falta) e colaboradores envolvidos —
   // inclui hora extra. ocorrenciasRecords: usado pra contagem de
@@ -1574,7 +1869,11 @@
     var colaboradoresSet = {};
     records.forEach(function(r){ colaboradoresSet[r.colaborador] = true; });
     var totalColaboradores = Object.keys(colaboradoresSet).length;
-    var totalGeral = Object.keys(colaboradoresSet).length ? uniqueSorted(state.records, function(r){ return r.colaborador; }).length : 0;
+    // total do ARQUIVO inteiro, independente do filtro atual — por isso
+    // não depende de totalColaboradores (que É o filtrado): se um filtro
+    // zera o resultado, "de X no arquivo carregado" continua mostrando o
+    // X real, não 0.
+    var totalGeral = uniqueSorted(state.records, function(r){ return r.colaborador; }).length;
 
     $("kpiColaboradores").textContent = formatNum(totalColaboradores);
     $("kpiColaboradoresSub").textContent = "de " + formatNum(totalGeral) + " no arquivo carregado";
@@ -1619,6 +1918,14 @@
     return formatDateBR(minD) + " a " + formatDateBR(maxD);
   }
 
+  // Tabela HTML genérica reaproveitada por toda tabela "simples" do
+  // dashboard (as que não têm busca/ordenação/paginação — isso é só a
+  // tabela de Histórico, seção 7). `columns` descreve cabeçalho + como
+  // renderizar cada célula (c.render(row) devolve HTML, não texto —
+  // por isso os próprios render() chamam escapeHtml quando o valor vem
+  // de dado do usuário); data-label em cada <td> é o que a versão
+  // mobile (tabela vira cards empilhados, ver CSS) usa pra mostrar o
+  // rótulo da coluna ao lado do valor.
   function renderTableSimple(container, columns, rows, opts){
     opts = opts || {};
     if (!rows.length){ container.innerHTML=""; container.appendChild(emptyMsg()); return; }
@@ -1705,15 +2012,32 @@
 
   /* =========================================================
      7. HISTÓRICO (tabela com busca, ordenação e paginação)
+     Única tabela do painel com busca/ordenação/paginação próprias (as
+     outras usam renderTableSimple, seção 6, que é só leitura). Por
+     isso guarda estado próprio fora de `state.records`:
+     historyRecordsCache é o conjunto já filtrado pelos filtros GERAIS
+     do painel (gestor/cargo/período/tipo/status — o mesmo que os
+     gráficos usam); busca de texto, ordenação de coluna e página atual
+     são um filtro/reordenação SEGUNDO, aplicado por cima disso, então
+     não precisam recalcular getFilteredRecords() a cada tecla digitada
+     na busca.
   ========================================================= */
   var historyRecordsCache = [];
 
+  // Chamado por renderDashboard toda vez que os filtros gerais mudam:
+  // troca o cache e volta pra página 1 (uma busca/ordenação antiga não
+  // faz sentido pro novo conjunto filtrado).
   function renderHistory(records){
     historyRecordsCache = records;
     state.historyPage = 1;
     drawHistory();
   }
 
+  // Aplica busca de texto + ordenação + paginação sobre
+  // historyRecordsCache e redesenha só o <tbody>/paginação (não mexe
+  // nos gráficos) — chamado a cada tecla na busca, clique de coluna ou
+  // troca de página, então precisa ser rápido; por isso opera sobre o
+  // cache já filtrado, não sobre state.records inteiro.
   function drawHistory(){
     var search = stripAccents($("historySearch").value.trim().toLowerCase());
     var rows = historyRecordsCache.filter(function(r){
@@ -1792,7 +2116,18 @@
 
   /* =========================================================
      8. CARREGAMENTO DE ARQUIVO E EVENTOS
+     Tudo roda no navegador: FileReader lê o arquivo local escolhido
+     (ou arrastado) sem nenhum upload pra servidor — o CSV nunca sai da
+     máquina do usuário, o que importa aqui porque o arquivo tem nome,
+     matrícula e dado de ausência de colaboradores reais.
   ========================================================= */
+  // Único ponto de entrada de dados no painel, seja por clique+seleção
+  // (input[type=file]) ou drag-and-drop (ambos chamam esta função).
+  // Reseta os color maps a cada novo arquivo pra que as cores dos
+  // gráficos (colorFor, seção 1) não fiquem "sujas" com gestores/tipos
+  // de um arquivo carregado anteriormente. Em caso de erro, mantém a
+  // tela no estado anterior (dropZone visível de novo) em vez de deixar
+  // o painel num estado inconsistente.
   function handleFile(file){
     $("dropZone").hidden = true;
     $("uploadStatus").hidden = false;
@@ -1875,21 +2210,42 @@
   $("clearFilters").addEventListener("click", function(){
     $("fGestor").value = ""; $("fCargo").value = ""; $("fColab").value = "";
     document.querySelectorAll(".chip").forEach(function(c){ c.classList.remove("active"); });
-    if (state.records.length){
-      var dates = state.records.map(function(r){ return r.data.getTime(); });
+    // mesma fonte de datas que populateFilterOptions()/countActiveFilters()
+    // usam (recordsGerais(), sem as linhas-resumo) — usar state.records
+    // aqui geraria um intervalo diferente do "período padrão" que essas
+    // duas funções conhecem, e o selo de filtros ativos ficaria aceso
+    // mesmo logo depois de "Limpar filtros".
+    var recordsParaPeriodo = recordsGerais();
+    if (recordsParaPeriodo.length){
+      var dates = recordsParaPeriodo.map(function(r){ return r.data.getTime(); });
       $("fDataIni").value = toISODate(new Date(Math.min.apply(null,dates)));
       $("fDataFim").value = toISODate(new Date(Math.max.apply(null,dates)));
     }
     applyFilters();
   });
 
+  // Ponto único que qualquer listener de filtro chama; a guarda evita
+  // redesenhar (e gastar tempo com um monte de querySelector) quando
+  // ainda não há arquivo carregado — os próprios controles de filtro
+  // só ficam visíveis depois de handleFile, mas o listener de resize
+  // (seção 9) também passa por essa mesma checagem.
   function applyFilters(){ if (state.records.length) renderDashboard(); }
+  // Atraso genérico: só dispara fn depois de `wait`ms sem uma nova
+  // chamada. Usado na busca de colaborador (evita refiltrar a cada
+  // tecla) e no resize da janela (evita redesenhar todos os SVGs a
+  // cada pixel arrastado enquanto o usuário redimensiona).
   function debounce(fn, wait){
     var t; return function(){ clearTimeout(t); var args=arguments; t=setTimeout(function(){ fn.apply(null,args); }, wait); };
   }
 
   /* =========================================================
      9. RESPONSIVO: orientação, resize dos gráficos, barra mobile
+     Os gráficos SVG são redesenhados (não só re-escalados via CSS)
+     quando a janela muda de tamanho, porque o layout de cada um
+     (quantas barras cabem, espaçamento dos rótulos etc.) é calculado
+     em pixels reais a partir de containerWidth() — ver seção 3. Um
+     resize.debounce evita centenas de re-renders enquanto o usuário
+     arrasta a borda da janela.
   ========================================================= */
   var orientationDismissed = false;
   $("orientationBannerClose").addEventListener("click", function(){
@@ -1897,6 +2253,12 @@
     $("orientationBanner").classList.add("dismissed");
   });
 
+  // Modal "manual" (sem <dialog> nativo, por compatibilidade): trava o
+  // scroll da página de fundo (body.style.overflow) enquanto aberto,
+  // senão o usuário conseguiria rolar o conteúdo por trás do overlay
+  // no celular. Fechamento tem 3 caminhos — botão X, clique fora do
+  // painel (checado abaixo: e.target === overlay, não um descendente) e
+  // tecla Esc — os três chamam fecharModalPausas pra manter simétrico.
   function abrirModalPausas(){
     $("pausasModalOverlay").hidden = false;
     document.body.style.overflow = "hidden";

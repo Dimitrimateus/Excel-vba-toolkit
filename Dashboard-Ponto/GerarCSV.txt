@@ -3,81 +3,155 @@ Option Explicit
 
 ' =====================================================================
 ' GerarCSVPonto
-' ---------------------------------------------------------------------
-' Consolida a aba "Tratamento" (desta planilha) com os dados de
-' "Ausência de marcação" do PontoNet numa aba "CSV", no formato
-' esperado pelo Painel de Ponto (Dashboard-Ponto).
+' =====================================================================
+' O QUE ESTE MÓDULO FAZ, EM UMA FRASE:
+' Lê várias abas de uma planilha de RH ("Tratamento Ponto") e escreve
+' uma aba "CSV" (uma linha por ocorrência/registro) no formato que o
+' Painel de Ponto (Dashboard-Ponto/index.html, um site estático que
+' roda só no navegador) sabe importar e exibir em gráficos/tabelas.
 '
-' Este módulo NÃO foi testado dentro do Excel/VBA (o ambiente onde ele
-' foi escrito não tem Excel instalado). Revise com atenção e rode
-' primeiro numa CÓPIA da planilha antes de usar com os dados reais.
+' Este módulo é o único elo entre a planilha do RH e o painel web: o
+' painel nunca lê Excel diretamente, só o CSV que sai daqui. Por isso,
+' qualquer coluna nova que o painel precise mostrar tem que primeiro
+' ganhar uma coluna correspondente aqui (ver PrepararAbaCSV) e ser
+' preenchida em algum lugar deste código.
 '
-' Como usar:
-'   1. Abra a planilha "Tratamento Ponto" (que contém a aba
-'      "Tratamento" e a aba "RE 08.09").
-'   2. Cole os dados de "Ausência de marcação" numa aba chamada
-'      "PontoNet", dentro dessa mesma planilha (mesmo cabeçalho do
-'      relatório original: Data falta, Matrícula, Nome, Situação
-'      atual, Justificativa, Avaliado em:, etc.).
-'   3. Importe este módulo (Alt+F11 > Arquivo > Importar Arquivo).
-'   4. Rode a macro GerarAbaCSV. Ela procura a aba "PontoNet"
-'      automaticamente; se não encontrar, pede para você selecionar
-'      um arquivo separado (pode cancelar essa caixa também; a demora
-'      no PontoNet fica em branco nesse caso, o resto continua
-'      funcionando).
-'   5. Rode a macro ExportarCSVPorGestor. Ela pede uma pasta e cria
-'      um arquivo .csv por gestor, mais um "dados_TODOS.csv" com tudo
-'      (esse último é o que vai para o supervisor geral).
+' -----------------------------------------------------------------
+' AS DUAS MACROS (na ordem em que você roda):
+'   1. GerarAbaCSV        - lê tudo, escreve a aba "CSV" dentro desta
+'                            mesma planilha. Pode rodar quantas vezes
+'                            quiser (sempre limpa e reescreve a aba).
+'   2. ExportarCSVPorGestor - lê a aba "CSV" já pronta e salva arquivos
+'                            .csv de verdade em disco: um por gestor
+'                            (pra mandar só a parte de cada um) mais um
+'                            "dados_TODOS.csv" com tudo (esse último é
+'                            o que o RH sobe no painel).
 '
-' Regras já confirmadas com o RH:
-'   - Linhas com Situação = "Sem alteração" são excluídas (não são
-'     ocorrência real).
-'   - Linhas com a coluna "Check" = "S" também são excluídas: "S"
-'     marca casos que o sistema aponta como ocorrência mas que na
-'     prática não têm problema (ex.: 1 minuto de hora extra). Só as
-'     marcadas "N" entram no CSV.
-'   - A coluna "Cargo" já existe na aba Tratamento (adicionada pelo
-'     RH) e é usada direto; só cai no lookup pela "RE 08.09" quando
-'     vier vazia.
-'   - A coluna "Pontonet" da aba Tratamento é ignorada de propósito
-'     (não representa quantidade de horas, é só um status auxiliar).
-'   - As colunas "Extras"/"Faltas" da aba Tratamento decidem QUAIS
-'     dias entram como ocorrência de hora extra / falta (e são a
-'     única fonte para "extra e falta no mesmo dia"). Mas a
-'     QUANTIDADE de horas gravada no CSV vem da aba "Cartão ponto até
-'     dia": coluna "BH" (coluna P) para as horas de falta cobertas por
-'     banco de horas; coluna "50%" (coluna S) para hora extra "normal".
-'     Se não achar a linha correspondente no Cartão Ponto, cai de
-'     volta para o valor da aba Tratamento (para não perder dado).
-'   - Hora extra a 100% (coluna "100%", coluna U, do Cartão Ponto) é
-'     reportada em linha separada, com tipo_ocorrencia = "Hora Extra
-'     100%", sempre que existir (Check "S" ou "N") — o painel mostra
-'     essa informação no card de "Total de horas extra". As colunas
-'     "60%" e "120%" NÃO são usadas.
-'   - Ocorrências curtas (< 15min): quando uma linha tem Check = "S"
-'     (que normalmente seria descartada por inteiro) E o Cartão Ponto
-'     confirma "Falta < 15min" ou "Extra < 15min" (coluna "Tolerância
-'     < 15min", coluna AA), essa linha entra no CSV mesmo assim, só
-'     pra alimentar a visão "Ocorrências curtas" do painel — sem
-'     contar nos totais normais de hora extra/falta.
-'   - "Horas Excedentes" (aba Tratamento, coluna "SIM"/vazio) vira uma
-'     lista separada no painel ("Relação de horas excedentes"), com
-'     as ocorrências marcadas "SIM".
+' -----------------------------------------------------------------
+' DE ONDE CADA COISA VEM (abas de entrada, todas na MESMA planilha):
 '
-' Pontos que ainda dependem de uma regra de negócio que eu não
-' consegui confirmar só olhando os dados (procure "REGRA:" abaixo):
-'   - Como decidir se uma hora extra foi para BANCO DE HORAS ou para
-'     PAGAMENTO (a aba "Tratamento" não tem essa informação separada;
-'     a coluna "BH" do Cartão Ponto é usada para FALTA coberta por
-'     banco de horas, não para destino da hora extra).
-'   - Como mapear os status reais (Tratado/Tratando/Tratar/vazio) para
-'     o vocabulário Pendente/Aprovado/Reprovado/Regularizado do painel.
-'   - Na aba Cartão Ponto, a coluna "BH" aparece tanto em dias de
-'     "Falta (Banco Horas)" (valor alto, o dia inteiro) quanto em dias
+'   "Tratamento" (obrigatória) — uma linha por ocorrência já revisada
+'     pelo RH no mês atual (atraso, falta, hora extra, etc.). É a
+'     fonte principal: define QUAIS dias viram ocorrência de hora
+'     extra/falta (colunas "Extras"/"Faltas"/"Extra 100%"), a
+'     situação, o status e o gestor/cargo do colaborador.
+'
+'   "RE 08.09" (obrigatória) — cadastro de colaboradores (matrícula →
+'     setor "Nome Unidade" e cargo). Usada como lookup de apoio sempre
+'     que a informação não está direto na aba de origem da linha.
+'
+'   "PontoNet" (opcional) — relatório de "Ausência de marcação" colado
+'     nesta planilha (ou escolhido como arquivo separado, se essa aba
+'     não existir). Não gera linhas novas no CSV: só enriquece a
+'     situação da FALTA já detectada pela Tratamento e alimenta a
+'     coluna "data_tratativa_pontonet" (usada pelo painel para calcular
+'     a demora de tratativa). Se não for encontrada, a demora fica em
+'     branco e o resto do CSV continua saindo normalmente.
+'
+'   "Cartão ponto ..." (uma ou mais; ex.: "Cartão ponto Julho",
+'     "Cartão ponto Agosto", "Cartão ponto Atual" — qualquer texto
+'     depois de "Cartão ponto" serve, o macro acha a aba pelo prefixo
+'     do nome, não pelo nome exato) — export bruto do sistema de ponto,
+'     um pouco diferente das outras abas: o cabeçalho de verdade fica
+'     na LINHA 2 (a linha 1 só tem uns rótulos de grupo soltos, tipo
+'     "Horas extras"), então toda leitura dessas abas passa
+'     linhaHeader:=2 pra ColunaPorCabecalho. O macro usa até as 3 abas
+'     desse tipo com a data mais recente (não precisa ficar renomeando
+'     nada todo mês, só não deixar mais de 3 abas acumuladas). A mais
+'     recente é tratada como "mês atual" e alimenta:
+'       - BH/50%/100% do dia, pra completar horas de extra/falta que a
+'         Tratamento já decidiu que existem (ver "Hora extra e falta:
+'         de onde vem a QUANTIDADE" abaixo);
+'       - "Hora Extra 100%" (linha própria, sempre que houver);
+'       - "Ocorrências curtas" (linha própria, coluna "Tolerância <
+'         15min", ver GerarOcorrenciasCurtasDoCartao);
+'     Todas as abas encontradas (até 3) alimentam a auditoria de
+'     "extra e falta no mesmo dia" dos últimos meses (ver
+'     "Auditoria de 3 meses" abaixo).
+'
+'   "Pausas térmicas" (opcional) — aba já formatada pelo macro irmão
+'     FormatarPausasTermicas.bas (pasta Pausas-Termicas/ do repo). Se
+'     existir, sua seção "Totais por Colaborador" é repassada pro CSV
+'     tal como está, sem recalcular nada (ver GerarResumoPausasTermicas).
+'
+' -----------------------------------------------------------------
+' PRA ONDE CADA COISA VAI: A ABA "CSV" (formato de saída)
+'
+' Uma linha = um evento. O cabeçalho tem 22 colunas (ver
+' PrepararAbaCSV); a maioria das linhas só preenche as primeiras 13
+' (ocorrência normal — extra, falta, hora extra 100%, curta etc.); as
+' 9 últimas só existem em 3 tipos de linha "resumo por colaborador"
+' que não representam um dia específico (ver EscreverLinhaCSV):
+'   - tipo_ocorrencia = "Auditoria Extra e Falta (3 Meses)" → preenche
+'     ocorrencias_extra_falta_mes_atual / _3_meses.
+'   - tipo_ocorrencia = "Resumo Pausas Térmicas" → preenche as 7
+'     colunas pausas_.../trabalho_....
+'   - qualquer outro tipo (Hora Extra, Falta, Atraso, Falta < 15min,
+'     Extra < 15min, ...) → só usa as 13 primeiras colunas.
+' O painel (index.html) sabe diferenciar esses 3 casos pelo próprio
+' texto de tipo_ocorrencia (ver TIPOS_RESUMO/TIPOS_CURTAS/
+' TIPOS_HORA_EXTRA lá no JS) e trata cada um numa vista própria, sem
+' misturar com os gráficos/KPIs de ocorrência "normal".
+'
+' -----------------------------------------------------------------
+' HORA EXTRA E FALTA: DE ONDE VEM A QUANTIDADE (o ponto mais sutil)
+'
+' As colunas "Extras"/"Faltas"/"Extra 100%" da Tratamento são só um
+' GATE: decidem SE aquele dia vira uma linha de "Hora Extra" ou
+' "Falta/Atraso" no CSV. A QUANTIDADE de minutos gravada, porém, vem
+' preferencialmente do Cartão Ponto do mês atual (coluna "BH" pra
+' falta coberta por banco de horas, "50%" pra hora extra normal) —
+' e só cai de volta pro valor da própria Tratamento se não achar a
+' linha correspondente no Cartão Ponto (pra nunca perder o dado). A
+' hora extra a 100% (coluna "100%" do Cartão Ponto) é assunto à parte:
+' sempre reportada em linha separada, com Check "S" ou "N", nunca
+' somada à hora extra "normal". As colunas "60%"/"120%" não são usadas
+' em lugar nenhum (pedido do RH).
+'
+' -----------------------------------------------------------------
+' REGRAS DE EXCLUSÃO (quando uma linha da Tratamento NÃO vira nada)
+'   - Situação = "" ou "Sem alteração" → não é ocorrência real, pulada
+'     (troque INCLUIR_SEM_ALTERACAO pra True se isso mudar).
+'   - Check = "S" → o sistema aponta uma ocorrência mas o RH já
+'     confirmou que não é um problema real (ex.: 1 min de hora extra);
+'     só a hora extra 100% dessa linha (se houver) ainda é reportada,
+'     porque isso é sempre relevante independente do Check.
+'
+' -----------------------------------------------------------------
+' AUDITORIA DE 3 MESES E OCORRÊNCIAS CURTAS (linhas geradas DEPOIS do
+' loop principal, não linha a linha da Tratamento — ver o corpo de
+' GerarAbaCSV logo após "Next r"):
+'   - Extra+falta no mesmo dia: soma, por colaborador, quantos dias
+'     tiveram "Sim" na coluna "Banco de horas e extra no mesmo dia" em
+'     cada aba de Cartão Ponto encontrada (até 3 meses). O painel
+'     destaca quem chega a 10+ no total dos 3 meses.
+'   - Ocorrências curtas: agora vêm direto da coluna "Tolerância <
+'     15min" do Cartão Ponto do mês atual (GerarOcorrenciasCurtasDoCartao),
+'     cobrindo TODA linha com esse sinal — não depende mais do Check
+'     da Tratamento (que só cobria um subconjunto menor).
+'
+' -----------------------------------------------------------------
+' PONTOS QUE AINDA DEPENDEM DE UMA REGRA DE NEGÓCIO NÃO CONFIRMADA
+' (procure "REGRA:" no código pra achar onde ajustar):
+'   - Destino da hora extra (Banco de Horas x Pagamento): a Tratamento
+'     não separa isso, então toda hora extra sai com destino em branco
+'     (o painel trata "em branco" como Pagamento).
+'   - Mapeamento Tratado/Tratando/Tratar → Pendente/Aprovado/
+'     Reprovado/Regularizado (vocabulário do painel) é uma
+'     simplificação: hoje só existe Regularizado (=Tratado) e Pendente
+'     (tudo o mais). Ajuste MapearStatus se o RH quiser diferenciar
+'     Aprovado/Reprovado de verdade.
+'   - A coluna "BH" do Cartão Ponto aparece tanto em dias de "Falta
+'     (Banco Horas)" (valor alto, o dia inteiro) quanto em dias
 '     "Trabalhando" (valor baixo, minutos). Este código trata qualquer
-'     valor de "BH" como hora de falta coberta pelo banco, do jeito
-'     que foi pedido. Se, na prática, o "BH" de um dia "Trabalhando"
-'     for crédito (e não falta), avise para eu ajustar.
+'     valor de "BH" como falta coberta pelo banco. Se o "BH" de um dia
+'     "Trabalhando" for crédito (e não falta), avise pra ajustar.
+'
+' -----------------------------------------------------------------
+' Este módulo nunca foi testado dentro do Excel de verdade (foi
+' escrito num ambiente sem Excel instalado, só validado simulando a
+' mesma lógica em Python contra arquivos reais). Rode sempre numa
+' CÓPIA da planilha antes de usar com dados de produção.
 ' =====================================================================
 
 ' ---- Regras configuráveis -------------------------------------------
@@ -93,6 +167,17 @@ Private Const DESTINO_HORA_EXTRA_PADRAO As String = ""
 ' ---------------------------------------------------------------------
 ' Sub principal: gera a aba "CSV"
 ' ---------------------------------------------------------------------
+' Roteiro desta Sub, em 4 fases (cada uma comentada no próprio código,
+' procure pelos separadores "====="):
+'   Fase 0 (abaixo): acha as abas de entrada e monta os dicionários de
+'     apoio (ver "por que dicionários" logo mais abaixo).
+'   Fase 1 (loop "For r = 2 To ultimaLinha"): uma linha da Tratamento
+'     de cada vez, decide o que virar ocorrência e escreve no CSV.
+'   Fase 2, 3, 4 (depois do "Next r"): três blocos independentes que
+'     acrescentam linhas "resumo" ao MESMO CSV (auditoria de 3 meses,
+'     ocorrências curtas, resumo de pausas térmicas) — nenhum dos três
+'     depende do loop da Fase 1, só reaproveitam os dicionários já
+'     montados (dictRE, dictGestorPorMatricula).
 Public Sub GerarAbaCSV()
     Dim wbTrat As Workbook
     Set wbTrat = ThisWorkbook
@@ -130,11 +215,23 @@ Public Sub GerarAbaCSV()
         If Not wbAus Is Nothing Then Set wsAus = wbAus.Sheets(1)
     End If
 
+    ' Por que dicionários (Scripting.Dictionary) em vez de procurar
+    ' célula a célula toda vez? O loop principal, mais na frente, faz
+    ' até 3 "buscas" por linha (RE, PontoNet, Cartão Ponto) — se cada
+    ' busca varresse a aba inteira de novo, o tempo total cresceria
+    ' multiplicando linhas-da-Tratamento × linhas-da-outra-aba (lento
+    ' pra milhares de linhas). Em vez disso, cada aba é lida UMA vez
+    ' aqui, isso monta um dicionário chave→dado (chave = matrícula, ou
+    ' matrícula&"|"&data quando é por dia), e depois o loop principal só
+    ' consulta esse dicionário (Dictionary.Exists/Item são O(1), não
+    ' precisam varrer nada). colIdx é o mesmo princípio, mas pra nomes
+    ' de coluna da própria Tratamento: dict("Nome do Cabeçalho") -> nº
+    ' da coluna, montado uma vez, usado o loop inteiro.
     Dim dictRE As Object, dictAus As Object, dictCartao As Object, colIdx As Object
-    Set dictRE = MontarDicionarioRE(wsRE)
-    Set dictAus = MontarDicionarioAusencia(wsAus)
-    Set dictCartao = MontarDicionarioCartao(wsCartao)
-    Set colIdx = MapearColunas(wsTrat)
+    Set dictRE = MontarDicionarioRE(wsRE)           ' matrícula -> (setor, cargo)
+    Set dictAus = MontarDicionarioAusencia(wsAus)   ' matrícula|data -> (justificativa, avaliado em, integrado?)
+    Set dictCartao = MontarDicionarioCartao(wsCartao) ' matrícula|data -> (BH, 50%, 100%) em minutos
+    Set colIdx = MapearColunas(wsTrat)              ' "Nome do Cabeçalho" -> nº da coluna, na Tratamento
 
     Dim wsCSV As Worksheet
     Set wsCSV = PrepararAbaCSV(wbTrat)
@@ -155,6 +252,10 @@ Public Sub GerarAbaCSV()
     Dim r As Long
     For r = 2 To ultimaLinha
 
+        ' Lê os campos "crus" desta linha da Tratamento. colIdx.Exists(...)
+        ' é usado nas colunas opcionais (Check, Horas Excedentes) porque
+        ' uma planilha mais antiga pode não ter essas colunas ainda — sem
+        ' o Exists, colIdx("Check") lançaria erro de chave inexistente.
         Dim matricula As String, nome As String, gestor As String, situacao As String, statusTxt As String, checkTxt As String
         Dim horasExcedentesTxt As String
         Dim dataOcorrencia As Variant
@@ -172,6 +273,9 @@ Public Sub GerarAbaCSV()
             If Trim$(CStr(wsTrat.Cells(r, colIdx("Horas Excedentes")).Value)) <> "" Then horasExcedentesTxt = "Sim"
         End If
 
+        ' Linha em branco (fim de fato dos dados, mesmo com ultimaLinha
+        ' apontando mais longe) ou sem data válida: não dá pra fazer
+        ' nada com ela, pula pra próxima.
         If nome = "" Or Not IsDate(dataOcorrencia) Then GoTo ProximaLinha
 
         If gestor <> "" And matricula <> "" Then
@@ -179,12 +283,17 @@ Public Sub GerarAbaCSV()
         End If
 
         ' Cartão Ponto: consultado sempre, mesmo em linhas Check = "S",
-        ' porque a hora extra a 100% e as ocorrências curtas (<15min)
-        ' são reportadas independente do Check.
+        ' porque a hora extra a 100% é reportada independente do Check
+        ' (ocorrências curtas <15min vêm de outro lugar — ver
+        ' GerarOcorrenciasCurtasDoCartao, chamada após este loop).
         Dim minFaltaBHCartao As Double, minExtra50Cartao As Double, minExtra100Cartao As Double
-        Dim tolerancia15 As String
-        ObterValoresCartao dictCartao, matricula, dataOcorrencia, minFaltaBHCartao, minExtra50Cartao, minExtra100Cartao, tolerancia15
+        ObterValoresCartao dictCartao, matricula, dataOcorrencia, minFaltaBHCartao, minExtra50Cartao, minExtra100Cartao
 
+        ' Setor: só existe na "RE 08.09" (lookup por matrícula). Cargo
+        ' tem duas fontes possíveis, nessa ordem de prioridade: se a
+        ' própria Tratamento já tiver uma coluna "Cargo" preenchida
+        ' (adicionada manualmente pelo RH), ela vence; senão cai pro
+        ' cargo cadastrado na "RE 08.09".
         Dim setorNome As String, cargoNome As String, cargoTratamento As String
         ObterSetorCargo dictRE, matricula, setorNome, cargoNome
         cargoTratamento = ""
@@ -300,6 +409,19 @@ ProximaLinha:
         Dim nomeAbaAtual As String
         nomeAbaAtual = wsCartao.Name ' abasCartao(1), a mais recente
 
+        ' calculado uma única vez aqui fora: é sempre o mesmo valor pra
+        ' toda linha de auditoria, não precisa (nem deve) ser recalculado
+        ' a cada colaborador do loop "For Each matAud" abaixo — cada
+        ' chamada a DataMaximaAba varre a coluna DT inteira da aba.
+        Dim dataAtualCartao As Date
+        dataAtualCartao = DataMaximaAba(wsCartao)
+
+        ' Passo 1: pra cada aba de Cartão Ponto (até 3), conta quantos
+        ' "Sim" cada matrícula teve NAQUELA aba, e guarda isso dentro de
+        ' dictContagens como matrícula -> (nome da aba -> contagem).
+        ' Esse "dicionário dentro de dicionário" é o que permite, no
+        ' passo 2, separar "quanto foi só no mês atual" de "quanto foi
+        ' no total dos 3 meses" pra cada colaborador.
         Dim abaIter As Variant
         For Each abaIter In abasCartao
             Dim wsIter As Worksheet
@@ -317,6 +439,10 @@ ProximaLinha:
             Next matIter
         Next abaIter
 
+        ' Passo 2: agora com os dados dos 3 meses todos já reunidos por
+        ' matrícula, soma tudo (total3Meses) e separa à parte a
+        ' contagem da aba mais recente (mesAtualCount) pra virar as duas
+        ' colunas que o CSV precisa.
         Dim matAud As Variant
         For Each matAud In dictContagens.Keys
             Dim contagensAba As Object
@@ -341,7 +467,7 @@ ProximaLinha:
                 gestorAud = ""
                 If dictGestorPorMatricula.Exists(CStr(matAud)) Then gestorAud = dictGestorPorMatricula(CStr(matAud))
 
-                EscreverLinhaCSV wsCSV, linhaSaida, DataMaximaAba(wsCartao), nomeAud, CStr(matAud), gestorAud, _
+                EscreverLinhaCSV wsCSV, linhaSaida, dataAtualCartao, nomeAud, CStr(matAud), gestorAud, _
                     setorAud, cargoAud, "Auditoria Extra e Falta (3 Meses)", "", "Pendente", 0, "", Empty, "", _
                     mesAtualCount, total3Meses
                 linhaSaida = linhaSaida + 1
@@ -379,8 +505,11 @@ ProximaLinha:
     Set wsPausas = wbTrat.Sheets("Pausas térmicas")
     On Error GoTo 0
     If Not wsPausas Is Nothing Then
+        ' dataAtualCartao só foi calculada acima se wsCartao existe (é o
+        ' mesmo teste); sem Cartão Ponto nenhum, usa a data de hoje como
+        ' referência só pra a linha ter uma data válida no CSV.
         GerarResumoPausasTermicas wsPausas, dictRE, dictGestorPorMatricula, wsCSV, linhaSaida, _
-            IIf(Not wsCartao Is Nothing, DataMaximaAba(wsCartao), Date), qtdResumoPausas
+            IIf(Not wsCartao Is Nothing, dataAtualCartao, Date), qtdResumoPausas
     End If
 
     If Not wbAus Is Nothing Then wbAus.Close SaveChanges:=False
@@ -450,6 +579,11 @@ End Sub
 ' Funções auxiliares
 ' =====================================================================
 
+' Pede ao usuário o arquivo PontoNet de "ausência de marcação" (workbook
+' separado do principal, com a "demora" — quanto tempo entre a
+' ocorrência e a tratativa do gestor). É opcional: se o usuário cancelar
+' o diálogo, devolve Nothing e o chamador segue em frente sem esse dado
+' (ObterDadosAusencia trata dictAus vazio normalmente).
 Private Function AbrirArquivoAusencia() As Workbook
     Dim caminho As Variant
     caminho = Application.GetOpenFilename( _
@@ -460,20 +594,6 @@ Private Function AbrirArquivoAusencia() As Workbook
     Else
         Set AbrirArquivoAusencia = Workbooks.Open(CStr(caminho), ReadOnly:=True)
     End If
-End Function
-
-' Acha uma aba cujo nome comece com "prefixo" (ignora maiúsculas e
-' espaços extras no fim do nome, tipo "Cartão ponto até dia "),
-' Returns Nothing se não encontrar.
-Private Function EncontrarAba(wb As Workbook, prefixo As String) As Worksheet
-    Dim ws As Worksheet
-    For Each ws In wb.Sheets
-        If LCase$(Left$(Trim$(ws.Name), Len(prefixo))) = LCase$(prefixo) Then
-            Set EncontrarAba = ws
-            Exit Function
-        End If
-    Next ws
-    Set EncontrarAba = Nothing
 End Function
 
 ' Acha TODAS as abas cujo nome comece com "prefixo" (ex.: "Cartão ponto
@@ -744,6 +864,11 @@ Private Function ColunaPorCabecalho(ws As Worksheet, cabecalho As String, Option
     ColunaPorCabecalho = 0
 End Function
 
+' Igual ColunaPorCabecalho, mas monta o mapa "nome da coluna -> número"
+' inteiro de uma vez (cabeçalho sempre na linha 1 aqui — é só usada com
+' a aba Tratamento, que segue o padrão normal de cabeçalho). Usada no
+' lugar de várias chamadas a ColunaPorCabecalho porque a Tratamento tem
+' muito mais colunas lidas por linha (12+) do que as outras abas.
 Private Function MapearColunas(ws As Worksheet) As Object
     Dim dict As Object
     Set dict = CreateObject("Scripting.Dictionary")
@@ -756,6 +881,11 @@ Private Function MapearColunas(ws As Worksheet) As Object
     Set MapearColunas = dict
 End Function
 
+' Cadastro de colaboradores (aba "RE 08.09"): matrícula -> (setor,
+' cargo). "Nome Unidade" na RE 08.09 é o que o resto do código chama
+' de "setor" (o painel usa esse termo). Consultado por ObterSetorCargo
+' logo abaixo sempre que uma matrícula precisa de setor/cargo e a aba
+' de origem não trouxe essa informação junto.
 Private Function MontarDicionarioRE(ws As Worksheet) As Object
     Dim dict As Object
     Set dict = CreateObject("Scripting.Dictionary")
@@ -782,6 +912,10 @@ Private Function MontarDicionarioRE(ws As Worksheet) As Object
     Set MontarDicionarioRE = dict
 End Function
 
+' Lookup simples no dicionário montado por MontarDicionarioRE. ByRef
+' porque o chamador já tem setorNome/cargoNome com valores default (ou
+' vindos da Tratamento) e só quer sobrescrevê-los quando a matrícula
+' existir na RE 08.09 — matrícula não encontrada não altera nada.
 Private Sub ObterSetorCargo(dictRE As Object, matricula As String, ByRef setorNome As String, ByRef cargoNome As String)
     If dictRE.Exists(matricula) Then
         Dim arr As Variant
@@ -798,11 +932,12 @@ End Sub
 ' Chave: Matricula & "|" & AAAA-MM-DD. Guarda, em minutos, a coluna
 ' "BH" (falta coberta por banco de horas, coluna P), a coluna "50%"
 ' (coluna S, hora extra "normal") e a coluna "100%" (coluna U, hora
-' extra a 100%) — "60%" e "120%" não entram, por pedido do RH. Guarda
-' também o texto da coluna "Tolerância < 15min" ("Falta < 15min" /
-' "Extra < 15min"), usado para a visão "Ocorrências curtas". Se a aba
+' extra a 100%) — "60%" e "120%" não entram, por pedido do RH. Se a aba
 ' não existir (não foi encontrada na planilha), devolve um dicionário
 ' vazio e o chamador cai de volta para os valores da aba Tratamento.
+' (A coluna "Tolerância < 15min" NÃO é lida aqui: "ocorrências curtas"
+' tem sua própria função dedicada, GerarOcorrenciasCurtasDoCartao, que
+' lê essa coluna direto — ver mais abaixo.)
 Private Function MontarDicionarioCartao(ws As Worksheet) As Object
     Dim dict As Object
     Set dict = CreateObject("Scripting.Dictionary")
@@ -812,13 +947,12 @@ Private Function MontarDicionarioCartao(ws As Worksheet) As Object
     End If
 
     Dim colMat As Long, colData As Long, colBH As Long
-    Dim col50 As Long, col100 As Long, colTolerancia As Long
+    Dim col50 As Long, col100 As Long
     colMat = ColunaPorCabecalho(ws, "Matrícula", 2)
     colData = ColunaPorCabecalho(ws, "DT", 2)
     colBH = ColunaPorCabecalho(ws, "BH", 2)
     col50 = ColunaPorCabecalho(ws, "50%", 2)
     col100 = ColunaPorCabecalho(ws, "100%", 2)
-    colTolerancia = ColunaPorCabecalho(ws, "Tolerância < 15min", 2)
     If colMat = 0 Or colData = 0 Then
         Set MontarDicionarioCartao = dict
         Exit Function
@@ -826,7 +960,7 @@ Private Function MontarDicionarioCartao(ws As Worksheet) As Object
 
     Dim ultimaLinha As Long, r As Long
     Dim mat As String, dt As Variant, chave As String
-    Dim bhMin As Double, extra50Min As Double, extra100Min As Double, tolerTxt As String
+    Dim bhMin As Double, extra50Min As Double, extra100Min As Double
 
     ultimaLinha = ws.Cells(ws.Rows.Count, colMat).End(xlUp).Row
     For r = 3 To ultimaLinha
@@ -837,29 +971,30 @@ Private Function MontarDicionarioCartao(ws As Worksheet) As Object
             bhMin = IIf(colBH > 0, NzNum(ws.Cells(r, colBH).Value), 0) * 24 * 60
             extra50Min = IIf(col50 > 0, NzNum(ws.Cells(r, col50).Value), 0) * 24 * 60
             extra100Min = IIf(col100 > 0, NzNum(ws.Cells(r, col100).Value), 0) * 24 * 60
-            tolerTxt = IIf(colTolerancia > 0, Trim$(CStr(ws.Cells(r, colTolerancia).Value)), "")
-            ' se a matrícula tiver mais de uma linha no mesmo dia, soma
-            ' os minutos e guarda o último texto de tolerância não vazio
+            ' se a matrícula tiver mais de uma linha no mesmo dia, soma os minutos
             If dict.Exists(chave) Then
                 Dim antigo As Variant
                 antigo = dict(chave)
-                If tolerTxt = "" Then tolerTxt = antigo(3)
-                dict(chave) = Array(antigo(0) + bhMin, antigo(1) + extra50Min, antigo(2) + extra100Min, tolerTxt)
+                dict(chave) = Array(antigo(0) + bhMin, antigo(1) + extra50Min, antigo(2) + extra100Min)
             Else
-                dict(chave) = Array(bhMin, extra50Min, extra100Min, tolerTxt)
+                dict(chave) = Array(bhMin, extra50Min, extra100Min)
             End If
         End If
     Next r
     Set MontarDicionarioCartao = dict
 End Function
 
+' Lookup no dicionário montado por MontarDicionarioCartao. Sempre zera
+' os três ByRef antes de procurar, então "matrícula/data não encontrada
+' no Cartão Ponto" e "encontrada mas com 0 minutos" dão o mesmo
+' resultado pro chamador — o que é o comportamento certo aqui, já que
+' o valor em minutos é tudo que os três casos têm em comum.
 Private Sub ObterValoresCartao(dictCartao As Object, matricula As String, dataOcorrencia As Variant, _
-    ByRef minFaltaBH As Double, ByRef minExtra50 As Double, ByRef minExtra100 As Double, ByRef tolerancia15 As String)
+    ByRef minFaltaBH As Double, ByRef minExtra50 As Double, ByRef minExtra100 As Double)
 
     minFaltaBH = 0
     minExtra50 = 0
     minExtra100 = 0
-    tolerancia15 = ""
     If dictCartao Is Nothing Then Exit Sub
     If Not IsDate(dataOcorrencia) Then Exit Sub
 
@@ -871,7 +1006,6 @@ Private Sub ObterValoresCartao(dictCartao As Object, matricula As String, dataOc
         minFaltaBH = arr(0)
         minExtra50 = arr(1)
         minExtra100 = arr(2)
-        tolerancia15 = arr(3)
     End If
 End Sub
 
@@ -922,6 +1056,11 @@ Private Function MontarDicionarioAusencia(ws As Worksheet) As Object
     Set MontarDicionarioAusencia = dict
 End Function
 
+' Lookup no dicionário montado por MontarDicionarioAusencia (arquivo
+' PontoNet separado e opcional — ver AbrirArquivoAusencia). temTratativa
+' só vira True quando a linha tem status "integrado" E uma data válida
+' de avaliação: é essa combinação que garante que avaliadoEm representa
+' a demora real, e não um placeholder de linha ainda em aberto.
 Private Sub ObterDadosAusencia(dictAus As Object, matricula As String, dataOcorrencia As Variant, _
     ByRef situacaoTexto As String, ByRef avaliadoEm As Variant, ByRef temTratativa As Boolean)
 
@@ -958,6 +1097,9 @@ Private Function MapearStatus(txt As String) As String
     End Select
 End Function
 
+' "Null-zero": converte pra número com segurança. Células vazias ou
+' com texto (ex.: "-") não são numéricas — sem essa checagem, CDbl
+' quebraria o macro inteiro na primeira célula em branco que encontrasse.
 Private Function NzNum(v As Variant) As Double
     If IsNumeric(v) Then
         NzNum = CDbl(v)
@@ -966,6 +1108,9 @@ Private Function NzNum(v As Variant) As Double
     End If
 End Function
 
+' Cria a aba "CSV" do zero (ou limpa e reaproveita, se já existir de
+' uma rodada anterior do macro) e escreve só a linha de cabeçalho — o
+' preenchimento de dados é todo feito depois, por EscreverLinhaCSV.
 Private Function PrepararAbaCSV(wb As Workbook) As Worksheet
     Dim ws As Worksheet
     On Error Resume Next
@@ -1035,6 +1180,9 @@ Private Sub EscreverLinhaCSV(ws As Worksheet, linha As Long, dataOcorrencia As V
     If Not IsEmpty(pausasMarcacoesImpares) Then ws.Cells(linha, 22).Value = pausasMarcacoesImpares
 End Sub
 
+' Pede ao usuário a pasta de destino dos CSVs exportados por
+' ExportarCSVPorGestor. String vazia = usuário cancelou o diálogo; o
+' chamador usa isso pra abortar a exportação sem gerar nada.
 Private Function EscolherPasta() As String
     Dim fd As Object
     Set fd = Application.FileDialog(4) ' 4 = msoFileDialogFolderPicker (evita depender da referência "Microsoft Office Object Library")
@@ -1046,6 +1194,10 @@ Private Function EscolherPasta() As String
     End If
 End Function
 
+' Nome de gestor vira nome de arquivo ("dados_<gestor>.csv"), e nomes
+' de gestor podem ter caracteres que o Windows não aceita em nome de
+' arquivo (ex.: "Fulano / Substituto"). Troca cada um desses caracteres
+' por "_" pra garantir que Workbooks/ADODB.Stream não falhe ao salvar.
 Private Function NomeArquivoSeguro(txt As String) As String
     Dim s As String, i As Long
     Dim invalidos As Variant
@@ -1113,6 +1265,11 @@ Private Function TextoCelula(celula As Range) As String
     End If
 End Function
 
+' Regra padrão de CSV (RFC 4180): um campo só precisa de aspas quando
+' contém vírgula, aspas ou quebra de linha — texto "normal" (nomes,
+' datas já formatadas, números) sai sem aspas, deixando o arquivo mais
+' limpo. Quando precisa de aspas, cada aspas interna vira "" (dobrada),
+' senão o CSV ficaria malformado no meio do campo.
 Private Function CampoCSV(valor As String) As String
     If InStr(valor, ",") > 0 Or InStr(valor, Chr(34)) > 0 Or InStr(valor, vbLf) > 0 Then
         CampoCSV = Chr(34) & Replace(valor, Chr(34), Chr(34) & Chr(34)) & Chr(34)
